@@ -6,7 +6,7 @@ class SettingsTab(ctk.CTkFrame):
         super().__init__(parent)
         self.parent = parent
         self.config_manager = config_manager
-        self.current_theme = "dark"
+        self.current_theme = "green_aura"  # ✅ Zmena na green_aura
         
         self.setup_ui()
         self.load_current_settings()
@@ -129,7 +129,7 @@ class SettingsTab(ctk.CTkFrame):
         ctk.CTkLabel(ui_frame, text="Téma:").pack(anchor="w", padx=10, pady=5)
         self.theme = ctk.CTkOptionMenu(
             ui_frame,
-            values=["dark", "light", "blue", "green"]
+            values=["green_aura", "purple_aura", "dark", "light", "blue"]  # ✅ green_aura ako prvá
         )
         self.theme.pack(fill="x", padx=10, pady=5)
         
@@ -169,7 +169,7 @@ class SettingsTab(ctk.CTkFrame):
             
             # UI settings
             ui_settings = settings.get("ui", {})
-            self.theme.set(ui_settings.get("theme", "dark"))
+            self.theme.set(ui_settings.get("theme", "green_aura"))  # ✅ Zmena na green_aura
             self.font_size.set(str(ui_settings.get("font_size", 12)))
             
         except Exception as e:

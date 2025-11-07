@@ -1,6 +1,6 @@
 # ui/gmail_tab.py
 import customtkinter as ctk
-from .themes import PurpleAuraTheme, AnimationManager
+from .themes import GreenAuraTheme, AnimationManager  # ✅ Zmena na GreenAuraTheme
 import requests
 import json
 
@@ -15,21 +15,24 @@ class GmailTab(ctk.CTkFrame):
         # Získanie témy
         try:
             settings = config_manager.load_settings() if config_manager else {}
-            self.current_theme = settings.get("ui", {}).get("theme", "purple_aura")
+            self.current_theme = settings.get("ui", {}).get("theme", "green_aura")  # ✅ Zmena na green_aura
         except:
-            self.current_theme = "purple_aura"
+            self.current_theme = "green_aura"  # ✅ Zmena na green_aura
             
         self.init_ui()
         
     def init_ui(self):
-        """Inicializuje PurpleAura Gmail rozhranie"""
+        """Inicializuje GreenAura Gmail rozhranie - OPRAVENÁ VERZIA"""
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1)
         
-        # Hlavný kontajner s PurpleAura štýlom
+        # Získaj tému
+        theme = GreenAuraTheme.get_theme(self.current_theme)
+        
+        # Hlavný kontajner s GreenAura štýlom
         main_container = ctk.CTkFrame(
             self, 
-            fg_color=PurpleAuraTheme.COLORS["bg_secondary"],
+            fg_color=theme["bg_secondary"],
             corner_radius=20
         )
         main_container.grid(row=0, column=0, sticky="nsew", padx=15, pady=15)
@@ -39,7 +42,7 @@ class GmailTab(ctk.CTkFrame):
         # Header s efektom
         header_frame = ctk.CTkFrame(
             main_container,
-            fg_color=PurpleAuraTheme.COLORS["vibrant_purple"],
+            fg_color=theme["accent"],
             height=80,
             corner_radius=15
         )
@@ -50,18 +53,18 @@ class GmailTab(ctk.CTkFrame):
             header_frame,
             text="📧 Gmail Manager",
             font=("Segoe UI", 20, "bold"),
-            text_color="white"
+            text_color=theme["text_primary"]
         ).pack(side="left", padx=20, pady=20)
         
         self.connection_status = ctk.CTkLabel(
             header_frame,
             text="🔮 Kontrolujem spojenie...",
             font=("Segoe UI", 14),
-            text_color=PurpleAuraTheme.COLORS["light_lavender"]
+            text_color=theme["text_accent"]
         )
         self.connection_status.pack(side="right", padx=20, pady=20)
         
-        # Tlačidlá s PurpleAura efektmi
+        # Tlačidlá s GreenAura efektmi
         button_frame = ctk.CTkFrame(main_container, fg_color="transparent")
         button_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
         
@@ -71,8 +74,8 @@ class GmailTab(ctk.CTkFrame):
             text="🔗 Pripojiť Gmail",
             command=self.connect_gmail,
             height=50,
-            fg_color=PurpleAuraTheme.COLORS["electric_purple"],
-            hover_color=PurpleAuraTheme.COLORS["lavender"],
+            fg_color=theme["accent"],
+            hover_color=theme["accent_secondary"],
             font=("Segoe UI", 14, "bold"),
             corner_radius=12
         )
@@ -83,8 +86,8 @@ class GmailTab(ctk.CTkFrame):
             text="🔄 Obnoviť emaily",
             command=self.refresh_emails,
             height=50,
-            fg_color=PurpleAuraTheme.COLORS["vibrant_purple"],
-            hover_color=PurpleAuraTheme.COLORS["light_lavender"],
+            fg_color=theme["accent_secondary"],
+            hover_color=theme["accent_glow"],
             font=("Segoe UI", 14, "bold"),
             corner_radius=12,
             state="disabled"
@@ -111,8 +114,8 @@ class GmailTab(ctk.CTkFrame):
             command=self.search_emails,
             width=100,
             height=40,
-            fg_color=PurpleAuraTheme.COLORS["magenta"],
-            hover_color=PurpleAuraTheme.COLORS["lavender"],
+            fg_color=theme["accent"],
+            hover_color=theme["accent_secondary"],
             corner_radius=10
         )
         btn_search.pack(side="right")
@@ -122,8 +125,8 @@ class GmailTab(ctk.CTkFrame):
             main_container,
             wrap="word",
             font=("Consolas", 11),
-            fg_color=PurpleAuraTheme.COLORS["deep_purple"],
-            text_color=PurpleAuraTheme.COLORS["text_primary"],
+            fg_color=theme["bg_tertiary"],
+            text_color=theme["text_primary"],
             corner_radius=15
         )
         self.email_display.grid(row=2, column=0, sticky="nsew", padx=10, pady=10)
@@ -132,7 +135,8 @@ class GmailTab(ctk.CTkFrame):
         self.after(100, self.check_gmail_status)
     
     def check_gmail_status(self):
-        """Skontroluje stav Gmail API s PurpleAura štýlom"""
+        """Skontroluje stav Gmail API s GreenAura štýlom"""
+        theme = GreenAuraTheme.get_theme(self.current_theme)
         try:
             response = requests.get('http://localhost:5001/gmail-status', timeout=5)
             data = response.json()
@@ -140,7 +144,7 @@ class GmailTab(ctk.CTkFrame):
             if data.get('status') == 'connected':
                 self.connection_status.configure(
                     text="✅ Gmail Pripojené",
-                    text_color=PurpleAuraTheme.COLORS["success"]
+                    text_color=theme["success"]
                 )
                 self.refresh_btn.configure(state="normal")
                 self.email_display.insert("end", "✨ Gmail API je pripojené\n\n")
@@ -149,14 +153,14 @@ class GmailTab(ctk.CTkFrame):
             else:
                 self.connection_status.configure(
                     text="❌ Gmail Nepripojené", 
-                    text_color=PurpleAuraTheme.COLORS["error"]
+                    text_color=theme["error"]
                 )
                 self.email_display.insert("end", f"💫 {data.get('message', 'Neznáma chyba')}\n")
                 
         except Exception as e:
             self.connection_status.configure(
                 text="⚠️ Chyba pripojenia",
-                text_color=PurpleAuraTheme.COLORS["warning"]
+                text_color=theme["warning"]
             )
             self.email_display.insert("end", f"🔮 Chyba: {str(e)}\n")
             self.email_display.insert("end", "Uistite sa, že Gmail API server beží na porte 5001\n")
@@ -178,6 +182,7 @@ class GmailTab(ctk.CTkFrame):
     
     def refresh_emails(self):
         """Načítaje emaily z Gmail API"""
+        theme = GreenAuraTheme.get_theme(self.current_theme)
         try:
             response = requests.get('http://localhost:5001/gmail-emails?max=10')
             data = response.json()
@@ -197,7 +202,7 @@ class GmailTab(ctk.CTkFrame):
                     
                     # Tag pre zvýraznenie hlavičky emailu
                     self.email_display.tag_config("email_header", 
-                                                foreground=PurpleAuraTheme.COLORS["neon_purple"],
+                                                foreground=theme["accent_glow"],
                                                 font=("Consolas", 11, "bold"))
             else:
                 self.email_display.insert("end", f"❌ Chyba: {data.get('error', 'Neznáma chyba')}\n")
@@ -209,6 +214,7 @@ class GmailTab(ctk.CTkFrame):
     
     def search_emails(self):
         """Vyhľadáva v emailoch"""
+        theme = GreenAuraTheme.get_theme(self.current_theme)
         query = self.search_entry.get().strip()
         if not query:
             return
@@ -230,7 +236,7 @@ class GmailTab(ctk.CTkFrame):
                     self.email_display.insert("end", "―" * 40 + "\n\n")
                     
                     self.email_display.tag_config("search_result", 
-                                                foreground=PurpleAuraTheme.COLORS["electric_purple"])
+                                                foreground=theme["accent"])
             else:
                 self.email_display.insert("end", f"❌ Chyba: {data.get('error', 'Neznáma chyba')}\n")
                 

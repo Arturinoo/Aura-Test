@@ -1,11 +1,11 @@
-# main.py - PurpleAura Edition (stabilná verzia)
+# main.py - GreenAura Edition (stabilná verzia)
 import sys
 import os
 import customtkinter as ctk
 
 def main():
     try:
-        print("✨ Spúšťam Aura AI Assistant - PurpleAura Edition...")
+        print("✨ Spúšťam Aura AI Assistant - GreenAura Edition...")  # ✅ Zmena názvu
         
         current_dir = os.path.dirname(os.path.abspath(__file__))
         sys.path.insert(0, current_dir)
@@ -19,14 +19,14 @@ def main():
         from core.assistant import AIAssistant
         from ui.main_window import MainWindow
         
-        print("🔮 Inicializujem PurpleAura komponenty...")
+        print("🔮 Inicializujem GreenAura komponenty...")  # ✅ Zmena názvu
         config_manager = ConfigManager()
         assistant = AIAssistant(config_manager)
         
-        print("🎨 Vytváram PurpleAura rozhranie...")
+        print("🎨 Vytváram GreenAura rozhranie...")  # ✅ Zmena názvu
         app = MainWindow(assistant, config_manager)
         
-        print("✅ PurpleAura aplikácia úspešne inicializovaná!")
+        print("✅ GreenAura aplikácia úspešne inicializovaná!")  # ✅ Zmena názvu
         print("🚀 Spúšťam hlavnú slučku...")
         
         # Spustenie aplikácie

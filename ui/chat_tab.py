@@ -8,7 +8,7 @@ from typing import Callable
 
 class ChatTab:
     def __init__(self, parent, assistant, config_manager):
-        self.parent = parent
+        self.parent = parent  # Toto je widget (CTkFrame)
         self.assistant = assistant
         self.config_manager = config_manager
         self.is_listening = False
@@ -215,23 +215,21 @@ Jednoducho napíšte svoju otázku..."""
         threading.Thread(target=self.process_message, args=(message,), daemon=True).start()
     
     def process_message(self, message: str):
-        """Spracuje správu v samostatnom vlákne"""
+        """Spracuje správu v samostatnom vlákne - OPRAVENÁ VERZIA"""
         try:
-            # Použij asyncio pre async funkcie
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
+            # ✅ POUŽIJ SYNCHRONNÚ VERZIU namiesto asyncio
+            response = self.assistant.process_command_sync(message)
             
-            response = loop.run_until_complete(self.assistant.process_command(message))
-            loop.close()
-            
-            # Skry indikátor a pridaj odpoveď
-            self.hide_thinking_indicator()
-            self.add_message("assistant", response)
+            # ✅ OPRAVENÉ: Použijeme after z hlavného widgetu (parent)
+            # Skry indikátor a pridaj odpoveď v hlavnom threade
+            self.parent.after(0, self.hide_thinking_indicator)
+            self.parent.after(0, lambda: self.add_message("assistant", response))
             
         except Exception as e:
-            self.hide_thinking_indicator()
             error_msg = f"❌ Chyba pri spracovaní: {str(e)}"
-            self.add_message("assistant", error_msg)
+            # ✅ OPRAVENÉ: Použijeme after z hlavného widgetu (parent)
+            self.parent.after(0, self.hide_thinking_indicator)
+            self.parent.after(0, lambda: self.add_message("assistant", error_msg))
     
     def toggle_voice_listening(self):
         """Prepína hlasové počúvanie"""

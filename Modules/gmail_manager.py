@@ -6,9 +6,9 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from email.mime.text import MimeText
-from email.mime.multipart import MimeMultipart
-from email.mime.base import MimeBase
+from email.mime.text import MIMEText  # ✅ OPRAVENÉ
+from email.mime.multipart import MIMEMultipart  # ✅ OPRAVENÉ
+from email.mime.base import MIMEBase  # ✅ OPRAVENÉ
 from email import encoders
 import mimetypes
 from typing import List, Dict, Any, Optional
@@ -110,8 +110,11 @@ class GmailManager:
             return f"❌ Chyba pri práci s Gmail: {str(e)}"
     
     def authenticate(self) -> str:
-        """Autentifikácia s Gmail API"""
+        """Autentifikácia s Gmail API - BEZPEČNÁ VERZIA"""
         try:
+            if not os.path.exists('gmail_credentials.json'):
+                return "❌ Gmail credentials chýbajú. Pre Gmail funkcie potrebujete gmail_credentials.json"
+            
             creds = None
             # token.json ukladá refresh token
             if os.path.exists('gmail_token.json'):
@@ -215,15 +218,15 @@ class GmailManager:
             return f"❌ Chyba pri odosielaní: {str(e)}"
     
     async def send_email(self, to: str, subject: str, body: str) -> str:
-        """Pošle email"""
+        """Pošle email - OPRAVENÁ VERZIA"""
         try:
-            message = MimeMultipart()
+            message = MIMEMultipart()  # ✅ OPRAVENÉ
             message['to'] = to
             message['subject'] = subject
             
             # Pridaj podpis
             full_body = body + self.config['signature']
-            message.attach(MimeText(full_body, 'plain'))
+            message.attach(MIMEText(full_body, 'plain'))  # ✅ OPRAVENÉ
             
             # Encode message
             raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode()
