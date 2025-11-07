@@ -1,321 +1,364 @@
-import customtkinter as ctk
-import tkinter as tk
-from typing import Callable, List, Dict
-import threading
-import asyncio
+import requests
+import json
+from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
+                             QTextEdit, QListWidget, QLabel, QLineEdit, QListWidgetItem,
+                             QMessageBox, QProgressBar, QSplitter)
+from PyQt5.QtCore import QThread, pyqtSignal, QTimer, Qt
+from PyQt5.QtGui import QFont, QColor
 
-class GmailTab:
-    def __init__(self, parent, assistant, config_manager):
-        self.parent = parent
-        self.assistant = assistant
-        self.config_manager = config_manager
-        self.setup_ui()
-        
-    def setup_ui(self):
-        # Hlavný kontejner
-        self.main_frame = ctk.CTkFrame(self.parent)
-        self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
-        
-        # Nadpis
-        self.title_label = ctk.CTkLabel(
-            self.main_frame, 
-            text="📧 Gmail Manager", 
-            font=ctk.CTkFont(size=20, weight="bold")
-        )
-        self.title_label.pack(pady=(0, 10))
-        
-        # Stavové informácie
-        self.status_frame = ctk.CTkFrame(self.main_frame)
-        self.status_frame.pack(fill="x", pady=(0, 10))
-        
-        self.status_label = ctk.CTkLabel(
-            self.status_frame,
-            text="🔒 Gmail nie je pripojený",
-            font=ctk.CTkFont(size=12),
-            text_color="#ff6b6b"
-        )
-        self.status_label.pack(side="left", padx=10, pady=5)
-        
-        # Tlačidlá pre operácie
-        self.buttons_frame = ctk.CTkFrame(self.main_frame)
-        self.buttons_frame.pack(fill="x", pady=(0, 10))
-        
-        self.connect_button = ctk.CTkButton(
-            self.buttons_frame,
-            text="🔗 Pripoj Gmail",
-            command=self.connect_gmail,
-            width=120,
-            height=35,
-            fg_color="#2b7c5b",
-            hover_color="#1e5941"
-        )
-        self.connect_button.pack(side="left", padx=(0, 10))
-        
-        self.refresh_button = ctk.CTkButton(
-            self.buttons_frame,
-            text="🔄 Obnoviť",
-            command=self.refresh_emails,
-            width=100,
-            height=35
-        )
-        self.refresh_button.pack(side="left", padx=(0, 10))
-        
-        self.compose_button = ctk.CTkButton(
-            self.buttons_frame,
-            text="📝 Nový Email",
-            command=self.open_compose_window,
-            width=120,
-            height=35,
-            fg_color="#6D28D9",
-            hover_color="#5B21B6"
-        )
-        self.compose_button.pack(side="left", padx=(0, 10))
-        
-        # Vyhľadávací panel
-        self.search_frame = ctk.CTkFrame(self.main_frame)
-        self.search_frame.pack(fill="x", pady=(0, 10))
-        
-        ctk.CTkLabel(self.search_frame, text="🔍 Hľadať:").pack(side="left", padx=(10, 5))
-        self.search_entry = ctk.CTkEntry(self.search_frame, width=200, placeholder_text="Zadajte hľadaný výraz...")
-        self.search_entry.pack(side="left", padx=5)
-        self.search_entry.bind("<Return>", lambda e: self.search_emails())
-        
-        self.search_button = ctk.CTkButton(
-            self.search_frame,
-            text="Hľadať",
-            command=self.search_emails,
-            width=80,
-            height=30
-        )
-        self.search_button.pack(side="left", padx=5)
-        
-        # Zobrazenie emailov
-        self.emails_container = ctk.CTkFrame(self.main_frame)
-        self.emails_container.pack(fill="both", expand=True)
-        
-        self.emails_frame = ctk.CTkScrollableFrame(
-            self.emails_container,
-            scrollbar_button_color="#2b2b2b",
-            scrollbar_button_hover_color="#3b3b3b"
-        )
-        self.emails_frame.pack(fill="both", expand=True, padx=5, pady=5)
-        
-        # Indikátor načítania
-        self.loading_indicator = ctk.CTkFrame(self.emails_frame, height=30, fg_color="transparent")
-        self.loading_label = ctk.CTkLabel(
-            self.loading_indicator,
-            text="⏳ Načítavam emaily...",
-            font=ctk.CTkFont(size=12),
-            text_color="#888888"
-        )
-        self.loading_label.pack(pady=5)
-        
-        # Na začiatok skontrolujeme stav
-        self.check_gmail_status()
+class EmailWorker(QThread):
+    """Worker thread pre načítavanie emailov"""
+    finished = pyqtSignal(object)
+    error = pyqtSignal(str)
     
-    def check_gmail_status(self):
-        """Skontroluje stav Gmail pripojenia"""
-        if hasattr(self.assistant, 'gmail_manager'):
-            if self.assistant.gmail_manager.authenticated:
-                self.status_label.configure(text="✅ Gmail pripojený", text_color="#4CAF50")
-                self.connect_button.configure(text="🔗 Pripojené", state="disabled")
-                self.refresh_emails()
+    def __init__(self, endpoint, params=None):
+        super().__init__()
+        self.endpoint = endpoint
+        self.params = params or {}
+        
+    def run(self):
+        try:
+            response = requests.get(f'http://localhost:5001/{self.endpoint}', 
+                                  params=self.params, timeout=10)
+            if response.status_code == 200:
+                self.finished.emit(response.json())
             else:
-                self.status_label.configure(text="🔒 Gmail nie je pripojený", text_color="#ff6b6b")
-    
-    def connect_gmail(self):
-        """Pripojí Gmail"""
-        def connect_thread():
-            try:
-                result = self.assistant.gmail_manager.authenticate()
-                self.parent.after(0, lambda: self.on_connect_result(result))
-            except Exception as e:
-                self.parent.after(0, lambda: self.on_connect_result(f"❌ Chyba: {str(e)}"))
+                self.error.emit(f"Server error: {response.status_code}")
+        except Exception as e:
+            self.error.emit(f"Connection error: {str(e)}")
+
+class GmailTab(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.current_emails = []
+        self.init_ui()
+        # Timer pre automatické obnovovanie stavu
+        self.status_timer = QTimer()
+        self.status_timer.timeout.connect(self.check_status)
+        self.status_timer.start(1)  # Kontrola každých 5 sekúnd
         
-        threading.Thread(target=connect_thread, daemon=True).start()
-        self.status_label.configure(text="🔗 Pripája sa...", text_color="#FFA500")
-    
-    def on_connect_result(self, result: str):
-        """Spracuje výsledok pripojenia"""
-        if "úspešne" in result.lower():
-            self.status_label.configure(text="✅ Gmail pripojený", text_color="#4CAF50")
-            self.connect_button.configure(text="🔗 Pripojené", state="disabled")
-            self.refresh_emails()
-        else:
-            self.status_label.configure(text=result, text_color="#ff6b6b")
-    
-    def refresh_emails(self):
-        """Obnoví zoznam emailov"""
-        if not hasattr(self.assistant, 'gmail_manager') or not self.assistant.gmail_manager.authenticated:
-            return
+    def init_ui(self):
+        main_layout = QVBoxLayout()
         
-        self.show_loading()
+        # Status panel
+        status_layout = QHBoxLayout()
         
-        def refresh_thread():
-            try:
-                emails_text = self.assistant.gmail_manager.get_recent_emails(15)
-                self.parent.after(0, lambda: self.display_emails(emails_text))
-            except Exception as e:
-                self.parent.after(0, lambda: self.display_emails(f"❌ Chyba pri načítaní: {str(e)}"))
+        self.status_label = QLabel("Stav: Kontrolujem pripojenie...")
+        status_font = QFont()
+        status_font.setBold(True)
+        self.status_label.setFont(status_font)
+        status_layout.addWidget(self.status_label)
         
-        threading.Thread(target=refresh_thread, daemon=True).start()
-    
-    def search_emails(self):
-        """Vyhľadá emaily"""
-        search_term = self.search_entry.get().strip()
-        if not search_term:
-            return
+        self.email_label = QLabel("Email: Neznámy")
+        status_layout.addWidget(self.email_label)
         
-        if not hasattr(self.assistant, 'gmail_manager') or not self.assistant.gmail_manager.authenticated:
-            return
+        status_layout.addStretch()
         
-        self.show_loading()
+        main_layout.addLayout(status_layout)
         
-        def search_thread():
-            try:
-                search_command = f"nájdi email {search_term}"
-                result = self.assistant.gmail_manager.search_emails(search_command)
-                self.parent.after(0, lambda: self.display_emails(result))
-            except Exception as e:
-                self.parent.after(0, lambda: self.display_emails(f"❌ Chyba pri vyhľadávaní: {str(e)}"))
-        
-        threading.Thread(target=search_thread, daemon=True).start()
-    
-    def show_loading(self):
-        """Zobrazí indikátor načítania"""
-        for widget in self.emails_frame.winfo_children():
-            widget.destroy()
-        
-        self.loading_indicator.pack(fill="x", pady=10)
-    
-    def display_emails(self, emails_text: str):
-        """Zobrazí emaily v UI"""
-        for widget in self.emails_frame.winfo_children():
-            widget.destroy()
-        
-        if not emails_text:
-            emails_text = "📭 Žiadne emaily na zobrazenie"
-        
-        emails_label = ctk.CTkLabel(
-            self.emails_frame,
-            text=emails_text,
-            justify="left",
-            font=ctk.CTkFont(size=12),
-            wraplength=600
-        )
-        emails_label.pack(anchor="w", padx=10, pady=5)
-    
-    def open_compose_window(self):
-        """Otvorie okna pre vytvorenie nového emailu"""
-        if not hasattr(self.assistant, 'gmail_manager') or not self.assistant.gmail_manager.authenticated:
-            self.status_label.configure(text="❌ Najprv pripojte Gmail", text_color="#ff6b6b")
-            return
-        
-        compose_window = ctk.CTkToplevel(self.main_frame)
-        compose_window.title("📝 Nový Email")
-        compose_window.geometry("600x500")
-        compose_window.transient(self.parent)
-        compose_window.grab_set()
-        
-        # Hlavný rám
-        main_frame = ctk.CTkFrame(compose_window)
-        main_frame.pack(fill="both", expand=True, padx=20, pady=20)
-        
-        # Polia formulára
-        ctk.CTkLabel(main_frame, text="Pre:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(0, 5))
-        to_entry = ctk.CTkEntry(main_frame, width=400, height=35)
-        to_entry.pack(fill="x", pady=(0, 15))
-        
-        ctk.CTkLabel(main_frame, text="Predmet:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(0, 5))
-        subject_entry = ctk.CTkEntry(main_frame, width=400, height=35)
-        subject_entry.pack(fill="x", pady=(0, 15))
-        
-        ctk.CTkLabel(main_frame, text="Správa:", font=ctk.CTkFont(weight="bold")).pack(anchor="w", pady=(0, 5))
-        body_text = ctk.CTkTextbox(main_frame, width=400, height=200)
-        body_text.pack(fill="both", expand=True, pady=(0, 20))
+        # Progress bar pre načítavanie
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        main_layout.addWidget(self.progress_bar)
         
         # Tlačidlá
-        button_frame = ctk.CTkFrame(main_frame, fg_color="transparent")
-        button_frame.pack(fill="x")
+        btn_layout = QHBoxLayout()
         
-        def send_email():
-            recipient = to_entry.get().strip()
-            subject = subject_entry.get().strip()
-            body = body_text.get("1.0", "end-1c").strip()
-            
-            if not recipient:
-                self.show_message(compose_window, "❌ Zadajte príjemcu")
-                return
-            
-            if not subject:
-                subject = "Bez predmetu"
-            
-            if not body:
-                body = " "
-            
-            # Odoslanie emailu
-            def send_thread():
-                try:
-                    result = asyncio.run(
-                        self.assistant.gmail_manager.send_email(recipient, subject, body)
-                    )
-                    compose_window.after(0, lambda: self.on_send_result(compose_window, result))
-                except Exception as e:
-                    compose_window.after(0, lambda: self.on_send_result(compose_window, f"❌ Chyba: {str(e)}"))
-            
-            threading.Thread(target=send_thread, daemon=True).start()
-            self.show_message(compose_window, "⏳ Odosielam email...")
+        self.connect_btn = QPushButton("🔗 Pripojiť Gmail")
+        self.connect_btn.clicked.connect(self.connect_gmail)
+        self.connect_btn.setStyleSheet("QPushButton { background-color: #4CAF50; color: white; }")
         
-        send_button = ctk.CTkButton(
-            button_frame,
-            text="📤 Odoslať",
-            command=send_email,
-            width=100,
-            height=35,
-            fg_color="#2b7c5b",
-            hover_color="#1e5941"
-        )
-        send_button.pack(side="right", padx=(10, 0))
+        self.refresh_btn = QPushButton("🔄 Obnoviť emaily")
+        self.refresh_btn.clicked.connect(self.refresh_emails)
+        self.refresh_btn.setEnabled(False)
+        self.refresh_btn.setStyleSheet("QPushButton { background-color: #2196F3; color: white; }")
         
-        cancel_button = ctk.CTkButton(
-            button_frame,
-            text="❌ Zrušiť",
-            command=compose_window.destroy,
-            width=100,
-            height=35,
-            fg_color="#7c2b2b",
-            hover_color="#591e1e"
-        )
-        cancel_button.pack(side="right")
+        self.test_btn = QPushButton("🧪 Test pripojenia")
+        self.test_btn.clicked.connect(self.test_connection)
+        self.test_btn.setStyleSheet("QPushButton { background-color: #FF9800; color: white; }")
+        
+        btn_layout.addWidget(self.connect_btn)
+        btn_layout.addWidget(self.refresh_btn)
+        btn_layout.addWidget(self.test_btn)
+        btn_layout.addStretch()
+        
+        main_layout.addLayout(btn_layout)
+        
+        # Vyhľadávanie
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(QLabel("🔍 Vyhľadávanie:"))
+        
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Zadajte hľadaný výraz...")
+        self.search_input.returnPressed.connect(self.search_emails)
+        search_layout.addWidget(self.search_input)
+        
+        self.search_btn = QPushButton("Hľadať")
+        self.search_btn.clicked.connect(self.search_emails)
+        search_layout.addWidget(self.search_btn)
+        
+        self.clear_search_btn = QPushButton("Zrušiť")
+        self.clear_search_btn.clicked.connect(self.clear_search)
+        self.clear_search_btn.setEnabled(False)
+        search_layout.addWidget(self.clear_search_btn)
+        
+        main_layout.addLayout(search_layout)
+        
+        # Splitter pre emaily a detail
+        splitter = QSplitter(Qt.Horizontal)
+        
+        # Ľavý panel - zoznam emailov
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        
+        left_layout.addWidget(QLabel("📧 Posledné emaily:"))
+        self.emails_list = QListWidget()
+        self.emails_list.itemClicked.connect(self.show_email_detail)
+        left_layout.addWidget(self.emails_list)
+        
+        # Pravý panel - detail emailu
+        right_widget = QWidget()
+        right_layout = QVBoxLayout(right_widget)
+        
+        right_layout.addWidget(QLabel("📄 Detail emailu:"))
+        self.email_detail = QTextEdit()
+        self.email_detail.setReadOnly(True)
+        self.email_detail.setStyleSheet("QTextEdit { background-color: #f5f5f5; }")
+        right_layout.addWidget(self.email_detail)
+        
+        splitter.addWidget(left_widget)
+        splitter.addWidget(right_widget)
+        splitter.setSizes([400, 600])
+        
+        main_layout.addWidget(splitter)
+        
+        # Štatistika
+        stats_layout = QHBoxLayout()
+        self.stats_label = QLabel("Načítavam štatistiky...")
+        stats_layout.addWidget(self.stats_label)
+        stats_layout.addStretch()
+        
+        self.last_update_label = QLabel("")
+        stats_layout.addWidget(self.last_update_label)
+        
+        main_layout.addLayout(stats_layout)
+        
+        self.setLayout(main_layout)
+        self.check_status()
+        
+    def check_status(self):
+        """Skontroluje stav Gmail pripojenia"""
+        try:
+            response = requests.get('http://localhost:1/gmail-status', timeout=5)
+            data = response.json()
+            
+            if data.get('status') == 'connected':
+                self.status_label.setText("✅ Stav: Pripojené")
+                self.status_label.setStyleSheet("color: green; font-weight: bold;")
+                self.email_label.setText(f"📭 Email: {data.get('email_address', 'Neznámy')}")
+                self.refresh_btn.setEnabled(True)
+                self.connect_btn.setEnabled(False)
+                # Automaticky načítaj emaily pri prvom pripojení
+                if not self.current_emails:
+                    self.refresh_emails()
+            else:
+                self.status_label.setText("❌ Stav: Nepripojené")
+                self.status_label.setStyleSheet("color: red; font-weight: bold;")
+                self.email_label.setText("📭 Email: Neznámy")
+                self.refresh_btn.setEnabled(False)
+                self.connect_btn.setEnabled(True)
+                
+        except Exception as e:
+            self.status_label.setText("⚠️ Stav: Chyba pripojenia")
+            self.status_label.setStyleSheet("color: orange; font-weight: bold;")
+            self.email_label.setText("📭 Email: Nedostupný")
     
-    def on_send_result(self, window, result: str):
-        """Spracuje výsledok odoslania emailu"""
-        window.destroy()
-        if "úspešne" in result.lower():
-            self.status_label.configure(text="✅ Email odoslaný", text_color="#4CAF50")
+    def connect_gmail(self):
+        """Spustí OAuth autorizáciu"""
+        import webbrowser
+        webbrowser.open('http://localhost:1/authorize')
+        self.status_label.setText("🔄 Stav: Prebieha autorizácia... Otvor prehliadač.")
+        self.status_label.setStyleSheet("color: blue; font-weight: bold;")
+        
+        # Spusti timer pre častejšiu kontrolu stavu počas autorizácie
+        self.status_timer.start(2000)
+        
+    def refresh_emails(self):
+        """Načítaje emaily z Gmail API"""
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setRange(0, 0)  # Indeterminate progress
+        
+        # Použi worker thread
+        self.email_worker = EmailWorker('gmail-emails', {'max': 20})
+        self.email_worker.finished.connect(self.on_emails_loaded)
+        self.email_worker.error.connect(self.on_emails_error)
+        self.email_worker.start()
+    
+    def on_emails_loaded(self, data):
+        """Spracuje načítané emaily"""
+        self.progress_bar.setVisible(False)
+        self.emails_list.clear()
+        self.current_emails = data.get('emails', [])
+        
+        for email in self.current_emails:
+            # Skrátený odosielateľ a predmet
+            sender = email['from'].split('<')[0].strip()[:30]
+            subject = email['subject'][:50] + "..." if len(email['subject']) > 50 else email['subject']
+            item_text = f"{sender}: {subject}"
+            item = QListWidgetItem(item_text)
+            
+            # Ulož celý email ako data
+            item.setData(Qt.UserRole, email)
+            
+            # Farba pre dôležité emaily
+            if any(keyword in email['subject'].lower() for keyword in ['important', 'urgent', 'dôležité']):
+                item.setBackground(QColor(255, 255, 200))  # Žltá pre dôležité
+            
+            self.emails_list.addItem(item)
+        
+        # Aktualizuj štatistiky
+        self.update_stats()
+        
+        # Zobraz prvý email v detaile
+        if self.current_emails:
+            self.emails_list.setCurrentRow(0)
+            self.show_email_detail(self.emails_list.item(0))
+    
+    def on_emails_error(self, error_msg):
+        """Spracuje chybu pri načítavaní emailov"""
+        self.progress_bar.setVisible(False)
+        QMessageBox.warning(self, "Chyba", f"Chyba pri načítaní emailov: {error_msg}")
+    
+    def show_email_detail(self, item):
+        """Zobrazí detail vybraného emailu"""
+        if not item:
+            return
+            
+        email_data = item.data(Qt.UserRole)
+        if email_data:
+            # Formátovanie dátumu
+            from datetime import datetime
+            try:
+                timestamp = int(email_data.get('internalDate', '0')) / 1000
+                date_str = datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y %H:%M')
+            except:
+                date_str = "Neznámy dátum"
+            
+            detail_text = f"""
+📧 OD: {email_data['from']}
+📋 PREDMET: {email_data['subject']}
+🕒 DÁTUM: {date_str}
+
+📝 SNIPPET:
+{email_data['snippet']}
+
+🔗 ID: {email_data['id']}
+            """
+            self.email_detail.setText(detail_text.strip())
+    
+    def search_emails(self):
+        """Vyhľadáva v emailoch"""
+        search_term = self.search_input.text().strip()
+        if not search_term:
+            QMessageBox.information(self, "Vyhľadávanie", "Zadajte hľadaný výraz")
+            return
+        
+        self.progress_bar.setVisible(True)
+        
+        # Použi worker thread pre vyhľadávanie
+        self.search_worker = EmailWorker('gmail-search', {'q': search_term, 'max': 20})
+        self.search_worker.finished.connect(self.on_search_loaded)
+        self.search_worker.error.connect(self.on_search_error)
+        self.search_worker.start()
+        
+        self.clear_search_btn.setEnabled(True)
+    
+    def on_search_loaded(self, data):
+        """Spracuje výsledky vyhľadávania"""
+        self.progress_bar.setVisible(False)
+        self.emails_list.clear()
+        self.current_emails = data.get('emails', [])
+        
+        query = data.get('query', '')
+        
+        for email in self.current_emails:
+            sender = email['from'].split('<')[0].strip()[:30]
+            subject = email['subject'][:50] + "..." if len(email['subject']) > 50 else email['subject']
+            item_text = f"{sender}: {subject}"
+            item = QListWidgetItem(item_text)
+            item.setData(Qt.UserRole, email)
+            item.setBackground(QColor(200, 255, 200))  # Zelená pre výsledky vyhľadávania
+            self.emails_list.addItem(item)
+        
+        self.update_stats()
+        self.stats_label.setText(f"📊 Nájdených emailov: {len(self.current_emails)} pre výraz: '{query}'")
+        
+        if self.current_emails:
+            self.emails_list.setCurrentRow(0)
+            self.show_email_detail(self.emails_list.item(0))
         else:
-            self.status_label.configure(text=result, text_color="#ff6b6b")
-        
-        # Obnovíme emaily
+            self.email_detail.setText("Žiadne emaily nevyhovujú vyhľadávaniu.")
+    
+    def on_search_error(self, error_msg):
+        """Spracuje chybu pri vyhľadávaní"""
+        self.progress_bar.setVisible(False)
+        QMessageBox.warning(self, "Chyba vyhľadávania", f"Chyba pri vyhľadávaní: {error_msg}")
+    
+    def clear_search(self):
+        """Zruší vyhľadávanie a vráti pôvodné emaily"""
+        self.search_input.clear()
         self.refresh_emails()
+        self.clear_search_btn.setEnabled(False)
+        self.stats_label.setText("Štatistiky")
     
-    def show_message(self, window, message: str):
-        """Zobrazí správu v okne"""
-        for widget in window.winfo_children():
-            if isinstance(widget, ctk.CTkLabel) and "message" in widget.cget("text").lower():
-                widget.destroy()
+    def test_connection(self):
+        """Testuje Gmail API pripojenie"""
+        self.progress_bar.setVisible(True)
         
-        message_label = ctk.CTkLabel(
-            window,
-            text=message,
-            text_color="#FFA500"
-        )
-        message_label.pack(pady=10)
+        self.test_worker = EmailWorker('gmail-test')
+        self.test_worker.finished.connect(self.on_test_loaded)
+        self.test_worker.error.connect(self.on_test_error)
+        self.test_worker.start()
     
-    def pack(self, **kwargs):
-        """Zabali hlavný rám pre zobrazenie"""
-        self.main_frame.pack(**kwargs)
+    def on_test_loaded(self, data):
+        """Spracuje výsledok testu"""
+        self.progress_bar.setVisible(False)
+        
+        if data.get('status') == 'success':
+            QMessageBox.information(self, "✅ Test pripojenia", 
+                                  f"Gmail API funguje správne!\n\n"
+                                  f"📂 Počet labelov: {data.get('labels_count', 0)}\n"
+                                  f"📧 Počet emailov: {data.get('recent_emails_count', 0)}\n"
+                                  f"💬 Správa: {data.get('message', 'OK')}")
+        else:
+            QMessageBox.warning(self, "❌ Test pripojenia", 
+                              f"Chyba: {data.get('message', 'Neznáma chyba')}")
     
-    def pack_forget(self):
-        """Skryje hlavný rám"""
-        self.main_frame.pack_forget()
+    def on_test_error(self, error_msg):
+        """Spracuje chybu testu"""
+        self.progress_bar.setVisible(False)
+        QMessageBox.critical(self, "❌ Test pripojenia", f"Chyba: {error_msg}")
+    
+    def update_stats(self):
+        """Aktualizuje štatistiky"""
+        from datetime import datetime
+        total_emails = len(self.current_emails)
+        self.stats_label.setText(f"📊 Počet načítaných emailov: {total_emails}")
+        self.last_update_label.setText(f"🕒 Posledná aktualizácia: {datetime.now().strftime('%H:%M:%S')}")
+
+    def closeEvent(self, event):
+        """Zastaví timer pri zatvorení"""
+        self.status_timer.stop()
+        super().closeEvent(event)
+
+# Testovací kód
+if __name__ == '__main__':
+    import sys
+    from PyQt5.QtWidgets import QApplication
+    
+    app = QApplication(sys.argv)
+    window = GmailTab()
+    window.setWindowTitle("Aura Test - Gmail Tab")
+    window.resize(1000, 700)
+    window.show()
+    sys.exit(app.exec_())
