@@ -1,0 +1,28 @@
+{
+    "ai": {
+        "local_model": "qwen2:7b",
+        "cloud_model": "gpt-4",
+        "use_cloud": false,
+        "temperature": 0.7,
+        "max_tokens": 1000
+    },
+    "voice": {
+        "enabled": true,
+        "wake_word": "asistent",
+        "language": "sk-SK",
+        "speech_rate": 150
+    },
+    "ui": {
+        "theme": "dark",
+        "font_size": 12,
+        "window_width": 1400,
+        "window_height": 900,
+        "sidebar_width": 200
+    },
+    "modules": {
+        "file_manager": true,
+        "code_analyzer": true,
+        "system_tools": true,
+        "web_tools": false
+    }
+}
