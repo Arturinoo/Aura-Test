@@ -1,404 +1,300 @@
 import customtkinter as ctk
-import threading
+import tkinter as tk
+from tkinter import ttk
 import asyncio
-from datetime import datetime
-from .styles import AppStyles
-from .themes import ThemeManager
+import threading
+import time
+from typing import Callable
 
-class ChatTab(ctk.CTkFrame):
+class ChatTab:
     def __init__(self, parent, assistant, config_manager):
-        super().__init__(parent)
         self.parent = parent
         self.assistant = assistant
         self.config_manager = config_manager
-        self.messages = []
-        self.current_theme = "dark"
-        self.voice_listening = False
-        
+        self.is_listening = False
         self.setup_ui()
         
     def setup_ui(self):
-        """Nastaví moderné chatovacie rozhranie s hlasovým ovládaním"""
-        self.grid_rowconfigure(0, weight=1)
-        self.grid_columnconfigure(0, weight=1)
+        # Hlavný kontejner
+        self.main_frame = ctk.CTkFrame(self.parent)
+        self.main_frame.pack(fill="both", expand=True, padx=10, pady=10)
         
-        # Hlavný chat kontajner
-        main_chat_frame = ctk.CTkFrame(self, fg_color="transparent")
-        main_chat_frame.grid(row=0, column=0, sticky="nsew", padx=20, pady=20)
-        main_chat_frame.grid_rowconfigure(0, weight=1)
-        main_chat_frame.grid_columnconfigure(0, weight=1)
-        
-        # Chat history s kartovým vzhľadom
-        chat_card = AppStyles.create_card(main_chat_frame)
-        chat_card.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
-        chat_card.grid_rowconfigure(0, weight=1)
-        chat_card.grid_columnconfigure(0, weight=1)
-        
-        # Nadpis chatu s hlasovými kontrolami
-        header_frame = ctk.CTkFrame(chat_card, fg_color="transparent", height=60)
-        header_frame.grid(row=0, column=0, sticky="ew", padx=20, pady=10)
-        header_frame.grid_columnconfigure(0, weight=1)
-        
-        ctk.CTkLabel(
-            header_frame,
-            text="💬 Konverzácia s AI",
-            font=("Segoe UI", 18, "bold")
-        ).grid(row=0, column=0, sticky="w")
-        
-        # Hlasové ovládanie
-        voice_frame = ctk.CTkFrame(header_frame, fg_color="transparent")
-        voice_frame.grid(row=0, column=1, sticky="e")
-        
-        self.voice_status_label = ctk.CTkLabel(
-            voice_frame,
-            text="🎤 Hlas: Vypnutý",
-            font=("Segoe UI", 10),
-            text_color="gray"
+        # Nadpis - menší a kompaktnejší
+        self.title_label = ctk.CTkLabel(
+            self.main_frame, 
+            text="Aura Chat", 
+            font=ctk.CTkFont(size=16, weight="bold")
         )
-        self.voice_status_label.pack(side="left", padx=5)
+        self.title_label.pack(pady=(0, 5))
         
-        self.voice_btn = ctk.CTkButton(
-            voice_frame,
-            text="🎤 Zapnúť Hlas",
+        # Rám pre chat správu - VIAC MIESTA PRE CHAT
+        self.chat_container = ctk.CTkFrame(self.main_frame)
+        self.chat_container.pack(fill="both", expand=True, pady=(0, 5))
+        
+        # Scrollovateľný rám pre správy - VYŠŠI
+        self.chat_frame = ctk.CTkScrollableFrame(
+            self.chat_container, 
+            scrollbar_button_color="#2b2b2b",
+            scrollbar_button_hover_color="#3b3b3b",
+            height=600  # ZVÝŠENÁ VÝŠKA
+        )
+        self.chat_frame.pack(fill="both", expand=True, padx=2, pady=2)
+        
+        # Indikátor "AI premýšľa" - kompaktnejší
+        self.thinking_indicator = ctk.CTkFrame(self.chat_frame, height=20, fg_color="transparent")
+        self.thinking_label = ctk.CTkLabel(
+            self.thinking_indicator,
+            text="🤔 AI premýšľa...",
+            font=ctk.CTkFont(size=11),
+            text_color="#888888"
+        )
+        self.thinking_label.pack(pady=2)
+        self.thinking_indicator.pack_forget()
+        
+        # Vstupný rám - VYŠŠI pre väčšie tlačidlá
+        self.input_frame = ctk.CTkFrame(self.main_frame, height=90)  # Zvýšené na 90
+        self.input_frame.pack(fill="x", pady=(0, 5))
+        self.input_frame.pack_propagate(False)
+        
+        # Textové pole pre vstup
+        self.input_text = ctk.CTkEntry(
+            self.input_frame,
+            placeholder_text="Napíšte svoju správu...",
+            height=35,
+            font=ctk.CTkFont(size=12)
+        )
+        self.input_text.pack(fill="x", padx=10, pady=(10, 8))
+        self.input_text.bind("<Return>", self.send_message)
+        
+        # Tlačidlový rám - VIAC PRIESTORU PRE TLAČIDLÁ
+        self.button_frame = ctk.CTkFrame(self.input_frame, fg_color="transparent", height=40)
+        self.button_frame.pack(fill="x", padx=10, pady=(0, 10))
+        self.button_frame.pack_propagate(False)
+        
+        # Stav hlasového ovládania - POSUNUTÉ DOĽAVA
+        self.voice_status = ctk.CTkLabel(
+            self.button_frame,
+            text="Hlas: Vypnutý",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#666666"
+        )
+        self.voice_status.pack(side="left", padx=(0, 10))
+        
+        # Tlačidlo hlasového ovládania - VÄČŠIE A LEPŠIE VIDITEĽNÉ
+        self.voice_button = ctk.CTkButton(
+            self.button_frame,
+            text="🎤 Zapnut hlas",
             command=self.toggle_voice_listening,
-            width=120,
-            height=30,
-            fg_color="#107c10",
-            hover_color="#0a5a0a"
+            width=140,  # Širšie
+            height=36,  # Vyššie
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color="#2b5b7c",
+            hover_color="#1e4159",
+            corner_radius=8
         )
-        self.voice_btn.pack(side="left", padx=5)
+        self.voice_button.pack(side="right", padx=(8, 0))
         
-        # Scrollable chat area
-        self.chat_container = ctk.CTkScrollableFrame(
-            chat_card,
-            fg_color=ThemeManager.get_theme(self.current_theme)["bg_tertiary"]
+        # Tlačidlo odoslať - VÄČŠIE A LEPŠIE VIDITEĽNÉ
+        self.send_button = ctk.CTkButton(
+            self.button_frame,
+            text="Odoslať",
+            command=self.send_message,
+            width=110,  # Širšie
+            height=36,  # Vyššie
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color="#2b7c5b",
+            hover_color="#1e5941",
+            corner_radius=8
         )
-        self.chat_container.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        self.send_button.pack(side="right", padx=(8, 0))
         
-        # Input area
-        input_card = AppStyles.create_card(main_chat_frame)
-        input_card.grid(row=1, column=0, sticky="ew", pady=(10, 0))
-        
-        self.setup_input_area(input_card)
-        
-        # Sidebar s rýchlymi príkazmi
-        self.setup_quick_commands(main_chat_frame)
-        
-        # Úvodná správa
+        # Inicializácia chatu
         self.add_welcome_message()
         
-        # Spusti aktualizáciu hlasového stavu
-        self.update_voice_status()
-    
-    def setup_input_area(self, parent):
-        """Nastaví vstupnú oblasť s hlasovými funkciami"""
-        input_frame = ctk.CTkFrame(parent, fg_color="transparent")
-        input_frame.pack(fill="x", padx=15, pady=15)
-        
-        # Vstupné pole
-        self.input_entry = AppStyles.create_modern_entry(
-            input_frame,
-            placeholder="Napíšte príkaz alebo použite hlas...",
-            height=45
-        )
-        self.input_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        self.input_entry.bind("<Return>", self.on_enter_pressed)
-        
-        # Tlačidlo pre odoslanie
-        self.send_btn = AppStyles.create_rounded_button(
-            input_frame,
-            text="Odoslať",
-            command=self.process_input,
-            width=100,
-            height=45
-        )
-        self.send_btn.pack(side="right", padx=(0, 10))
-        
-        # Tlačidlo pre hlasový vstup
-        self.voice_input_btn = ctk.CTkButton(
-            input_frame,
-            text="🎤",
-            width=50,
-            height=45,
-            command=self.start_voice_input,
-            corner_radius=10,
-            fg_color=ThemeManager.get_theme(self.current_theme)["bg_tertiary"],
-            hover_color=ThemeManager.get_theme(self.current_theme)["accent"]
-        )
-        self.voice_input_btn.pack(side="right")
-    
-    def setup_quick_commands(self, parent):
-        """Nastaví sidebar s rýchlymi príkazmi"""
-        quick_commands_card = AppStyles.create_card(parent)
-        quick_commands_card.grid(row=0, column=1, rowspan=2, sticky="nsew", padx=(10, 0))
-        
-        ctk.CTkLabel(
-            quick_commands_card,
-            text="⚡ Rýchle Príkazy",
-            font=("Segoe UI", 16, "bold")
-        ).pack(pady=15)
-        
-        # Hlasové príkazy
-        ctk.CTkLabel(
-            quick_commands_card,
-            text="🎙️ Hlasové Príkazy:",
-            font=("Segoe UI", 12, "bold")
-        ).pack(anchor="w", padx=10, pady=(10, 5))
-        
-        voice_commands = [
-            "Zastav - stop speaking",
-            "Zruš - cancel listening", 
-            "Pomoc - voice help"
-        ]
-        
-        for cmd in voice_commands:
-            ctk.CTkLabel(
-                quick_commands_card,
-                text=f"• {cmd}",
-                font=("Segoe UI", 10),
-                justify="left"
-            ).pack(anchor="w", padx=15, pady=2)
-        
-        # Separátor
-        ctk.CTkFrame(quick_commands_card, height=1).pack(fill="x", padx=10, pady=10)
-        
-        # AI Príkazy
-        quick_commands = [
-            "Vytvor zložku projektu",
-            "Analyzuj aktuálny kód",
-            "Systémové informácie", 
-            "Zobraz bežiace procesy",
-            "Test rýchlosti internetu"
-        ]
-        
-        for cmd in quick_commands:
-            btn = ctk.CTkButton(
-                quick_commands_card,
-                text=cmd,
-                command=lambda c=cmd: self.send_quick_command(c),
-                height=35,
-                corner_radius=8,
-                fg_color=ThemeManager.get_theme(self.current_theme)["bg_tertiary"],
-                hover_color=ThemeManager.get_theme(self.current_theme)["accent"],
-                text_color=ThemeManager.get_theme(self.current_theme)["text_primary"],
-                anchor="w"
-            )
-            btn.pack(fill="x", padx=10, pady=3)
-    
     def add_welcome_message(self):
-        """Pridá úvodnú správu do chatu"""
-        welcome_msg = """
-🤖 **Vitajte v AI Assistente!**
+        """Pridá uvítaciu správu do chatu"""
+        welcome_text = """👋 Vitajte v Aura Assistant!
 
-Môžete ma požiadať o:
-• 📁 **Správa súborov** - vytváranie, mazanie, premenovávanie
-• 💻 **Systémové úlohy** - informácie o systéme, procesy, sieť
-• 🔍 **Analýza kódu** - kontrola a optimalizácia kódu
-• 🌐 **Webové úlohy** - vyhľadávanie, sťahovanie
+Môžete:
+- Pýtať sa na systémové informácie
+- Prehľadávať súbory
+- Čítať PDF dokumenty
+- Zisťovať počasie
+- Používať hlasové ovládanie
 
-Alebo mi jednoducho položte otázku!
-"""
-        self.add_message("AI Asistent", welcome_msg, "assistant")
+Jednoducho napíšte svoju otázku..."""
+        
+        self.add_message("assistant", welcome_text, is_welcome=True)
     
-    def add_message(self, sender, message, message_type="user"):
-        """Pridá správu do chatu s formátovaním"""
+    def add_message(self, sender: str, text: str, is_welcome: bool = False):
+        """Pridá správu do chatu - NOVÉ FARBY"""
         message_frame = ctk.CTkFrame(
-            self.chat_container,
-            fg_color="transparent"
+            self.chat_frame, 
+            fg_color="transparent",
+            corner_radius=12
         )
-        message_frame.pack(fill="x", pady=8)
+        message_frame.pack(fill="x", padx=3, pady=1)
         
-        # Urči farbu podľa typu správy
-        colors = ThemeManager.get_theme(self.current_theme)
-        bg_color = colors["accent"] if message_type == "user" else colors["bg_secondary"]
-        text_color = colors["text_primary"]
-        
-        # Hlavný frame správy
-        msg_card = ctk.CTkFrame(
-            message_frame,
-            fg_color=bg_color,
-            corner_radius=15
-        )
-        
-        if message_type == "user":
-            msg_card.pack(anchor="e", fill="x", padx=(50, 0))
+        # NOVÉ FARBY BUBLÍN:
+        if sender == "user":
+            # SIVÁ pre používateľa
+            bg_color = "#4A5568"  # Elegantná sivá
+            text_color = "white"
+            justify = "right"
+            padx_config = (40, 8)
         else:
-            msg_card.pack(anchor="w", fill="x", padx=(0, 50))
-        
-        # Hlavička správy
-        header_frame = ctk.CTkFrame(msg_card, fg_color="transparent")
-        header_frame.pack(fill="x", padx=15, pady=(10, 5))
-        
-        # Meno a čas
-        ctk.CTkLabel(
-            header_frame,
-            text=sender,
-            font=("Segoe UI", 12, "bold"),
-            text_color=text_color
-        ).pack(side="left")
-        
-        ctk.CTkLabel(
-            header_frame,
-            text=datetime.now().strftime("%H:%M"),
-            font=("Segoe UI", 10),
-            text_color=ThemeManager.get_theme(self.current_theme)["text_secondary"]
-        ).pack(side="right")
+            # FIALOVÁ AURA pre AI
+            if is_welcome:
+                bg_color = "#2b7c5b"  # Zelená pre uvítaciu správu
+            else:
+                bg_color = "#6D28D9"  # Krásna fialovo-modrá pre AI
+            text_color = "white"
+            justify = "left"
+            padx_config = (8, 40)
         
         # Text správy
-        ctk.CTkLabel(
-            msg_card,
-            text=message,
-            font=("Segoe UI", 12),
+        message_label = ctk.CTkLabel(
+            message_frame,
+            text=text,
+            wraplength=500,
+            justify=justify,
+            font=ctk.CTkFont(size=11),
+            fg_color=bg_color,
             text_color=text_color,
-            wraplength=600,
-            justify="left"
-        ).pack(fill="x", padx=15, pady=(0, 10))
+            corner_radius=12,
+            padx=12,
+            pady=6
+        )
+        message_label.pack(side="top", padx=padx_config, pady=1)
         
-        # Ulož do histórie
-        self.messages.append({
-            "sender": sender,
-            "message": message,
-            "type": message_type,
-            "timestamp": datetime.now()
-        })
+        # Časová pečiatka
+        timestamp = time.strftime("%H:%M")
+        timestamp_label = ctk.CTkLabel(
+            message_frame,
+            text=timestamp,
+            font=ctk.CTkFont(size=8),
+            text_color="#666666"
+        )
         
-        # Scroll na koniec
-        self.chat_container._parent_canvas.yview_moveto(1.0)
+        if sender == "user":
+            timestamp_label.pack(side="right", padx=(0, 12))
+        else:
+            timestamp_label.pack(side="left", padx=(12, 0))
+        
+        # Auto-scroll na najnovšiu správu
+        self.scroll_to_bottom()
     
-    # ✅ PRIDANÉ CHÝBAJÚCE METÓDY
-    def on_enter_pressed(self, event):
-        """Spracuje stlačenie Enter"""
-        self.process_input()
-        
-    def process_input(self):
-        """Spracuje vstup od používateľa"""
-        command = self.input_entry.get().strip()
-        if not command:
+    def scroll_to_bottom(self):
+        """Automatický scroll na spodok chatu"""
+        self.chat_frame.update_idletasks()
+        self.chat_frame._parent_canvas.yview_moveto(1.0)
+    
+    def show_thinking_indicator(self):
+        """Zobrazí indikátor, že AI premýšľa"""
+        self.thinking_indicator.pack(fill="x", pady=3)
+        self.scroll_to_bottom()
+    
+    def hide_thinking_indicator(self):
+        """Skryje indikátor premýšľania"""
+        self.thinking_indicator.pack_forget()
+    
+    def send_message(self, event=None):
+        """Spracuje a odošle správu"""
+        message = self.input_text.get().strip()
+        if not message:
             return
-            
-        self.input_entry.delete(0, "end")
-        self.add_message("Ty", command, "user")
         
-        threading.Thread(target=self.process_command, args=(command,), daemon=True).start()
+        # Pridaj správu používateľa
+        self.add_message("user", message)
+        self.input_text.delete(0, "end")
         
-    def process_command(self, command):
-        """Spracuje príkaz a zobrazí odpoveď"""
+        # Zobraz indikátor premýšľania
+        self.show_thinking_indicator()
+        
+        # Spracuj správu asynchrónne
+        threading.Thread(target=self.process_message, args=(message,), daemon=True).start()
+    
+    def process_message(self, message: str):
+        """Spracuje správu v samostatnom vlákne"""
         try:
-            # Vytvor nový event loop pre asyncio
+            # Použij asyncio pre async funkcie
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             
-            response = loop.run_until_complete(self.assistant.process_command(command))
+            response = loop.run_until_complete(self.assistant.process_command(message))
             loop.close()
             
-            # Zobraz odpoveď v GUI vlákne
-            self.after(0, lambda: self.add_message("AI Asistent", response, "assistant"))
+            # Skry indikátor a pridaj odpoveď
+            self.hide_thinking_indicator()
+            self.add_message("assistant", response)
             
         except Exception as e:
-            error_msg = f"Chyba: {str(e)}"
-            self.after(0, lambda: self.add_message("Systém", error_msg, "system"))
-    
-    def send_quick_command(self, command):
-        """Pošle rýchly príkaz"""
-        self.input_entry.delete(0, "end")
-        self.input_entry.insert(0, command)
-        self.process_input()
+            self.hide_thinking_indicator()
+            error_msg = f"❌ Chyba pri spracovaní: {str(e)}"
+            self.add_message("assistant", error_msg)
     
     def toggle_voice_listening(self):
-        """Prepína nepretržité hlasové počúvanie"""
-        if not self.voice_listening:
-            self.start_continuous_listening()
+        """Prepína hlasové počúvanie"""
+        if self.is_listening:
+            self.stop_voice_listening()
         else:
-            self.stop_continuous_listening()
+            self.start_voice_listening()
     
-    def start_continuous_listening(self):
-        """Spustí nepretržité hlasové počúvanie"""
-        self.voice_listening = True
-        self.voice_btn.configure(
-            text="🔴 Vypnúť Hlas", 
-            fg_color="#e81123",
-            hover_color="#a00d19"
+    def start_voice_listening(self):
+        """Spustí hlasové počúvanie"""
+        self.is_listening = True
+        self.voice_button.configure(
+            text="🔴 Vypnut hlas", 
+            fg_color="#7c2b2b",
+            hover_color="#591e1e"
         )
-        self.voice_status_label.configure(text="🎤 Hlas: Počúva...", text_color="green")
-        
-        def voice_callback(command):
-            if command and command not in ["", "❌ Nerozpoznal som reč"]:
-                self.after(0, lambda: self.process_voice_command(command))
-        
-        self.assistant.start_voice_listening(voice_callback)
-        self.add_message("Systém", "🎙️ Nepretržité hlasové počúvanie spustené. Povedz 'asistent' pre aktiváciu.", "system")
+        self.voice_status.configure(text="Hlas: Počúvam...", text_color="#4CAF50")
+        self.assistant.start_voice_listening(self.voice_callback)
     
-    def stop_continuous_listening(self):
-        """Zastaví nepretržité hlasové počúvanie"""
-        self.voice_listening = False
-        self.voice_btn.configure(
-            text="🎤 Zapnúť Hlas",
-            fg_color="#107c10", 
-            hover_color="#0a5a0a"
+    def stop_voice_listening(self):
+        """Zastaví hlasové počúvanie"""
+        self.is_listening = False
+        self.voice_button.configure(
+            text="🎤 Zapnut hlas",
+            fg_color="#2b5b7c", 
+            hover_color="#1e4159"
         )
-        self.voice_status_label.configure(text="🎤 Hlas: Vypnutý", text_color="gray")
-        
+        self.voice_status.configure(text="Hlas: Vypnutý", text_color="#666666")
         self.assistant.stop_voice_listening()
-        self.add_message("Systém", "🔇 Nepretržité hlasové počúvanie zastavené.", "system")
     
-    def start_voice_input(self):
-        """Spustí jednorazový hlasový vstup"""
-        if self.voice_listening:
-            self.add_message("Systém", "🎤 Už počúvam... povedz príkaz", "system")
-            return
-        
-        self.add_message("Systém", "🎤 Počúvam... povedz príkaz", "system")
-        
-        def voice_worker():
-            command = self.assistant.voice_engine.listen(timeout=10)
-            if command and command not in ["", "❌ Nerozpoznal som reč"]:
-                self.after(0, lambda: self.process_voice_command(command))
-        
-        threading.Thread(target=voice_worker, daemon=True).start()
-    
-    def process_voice_command(self, command):
-        """Spracuje hlasový príkaz"""
-        self.add_message("Ty (hlas)", command, "user")
-        
-        # Spracuj príkaz v samostatnom vlákne
-        threading.Thread(
-            target=self.process_command, 
-            args=(command,),
-            daemon=True
-        ).start()
+    def voice_callback(self, text: str):
+        """Callback pre hlasové príkazy"""
+        if text:
+            self.input_text.delete(0, "end")
+            self.input_text.insert(0, text)
+            self.send_message()
     
     def update_voice_status(self):
         """Aktualizuje stav hlasového ovládania"""
         voice_status = self.assistant.get_voice_status()
         
-        status_text = "🎤 Hlas: "
-        status_color = "gray"
-        
-        if voice_status["listening"]:
-            status_text += "Počúva..."
-            status_color = "green"
-        elif voice_status["speaking"]:
-            status_text += "Hovorí..."
-            status_color = "blue"
-        elif voice_status["wake_word_detected"]:
-            status_text += "Aktívny"
-            status_color = "orange"
+        if voice_status.get("listening", False):
+            self.voice_status.configure(text="Hlas: Počúvam...", text_color="#4CAF50")
+            self.is_listening = True
+            self.voice_button.configure(
+                text="🔴 Vypnut hlas",
+                fg_color="#7c2b2b",
+                hover_color="#591e1e"
+            )
         else:
-            status_text += "Vypnutý"
-            status_color = "gray"
-        
-        self.voice_status_label.configure(text=status_text, text_color=status_color)
-        
-        # Pokračuj v aktualizácii každú sekundu
-        self.after(1000, self.update_voice_status)
-    
-    def clear_chat(self):
-        """Vymaže chat"""
-        for widget in self.chat_container.winfo_children():
-            widget.destroy()
-        self.messages.clear()
-        self.add_welcome_message()
-    
-    def export_chat(self):
-        """Exportuje chat (placeholder)"""
-        self.add_message("Systém", "💾 Funkcia exportu bude dostupná čoskoro...", "system")
+            self.voice_status.configure(text="Hlas: Vypnutý", text_color="#666666")
+            self.is_listening = False
+            self.voice_button.configure(
+                text="🎤 Zapnut hlas",
+                fg_color="#2b5b7c",
+                hover_color="#1e4159"
+            )
+
+    # Metódy pre správu zobrazenia
+    def pack(self, **kwargs):
+        """Zabali hlavný rám pre zobrazenie"""
+        self.main_frame.pack(**kwargs)
+
+    def pack_forget(self):
+        """Skryje hlavný rám"""
+        self.main_frame.pack_forget()

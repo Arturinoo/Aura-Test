@@ -6,6 +6,7 @@ from .themes import ThemeManager
 from .styles import AppStyles
 import threading
 import time
+from ui.gmail_tab import GmailTab
 
 class MainWindow(ctk.CTk):
     def __init__(self, assistant, config_manager):
@@ -13,6 +14,8 @@ class MainWindow(ctk.CTk):
         
         self.assistant = assistant
         self.config_manager = config_manager
+
+        self.gmail_tab = None
         
         # Bezpečné načítanie nastavení s fallback
         try:
@@ -69,11 +72,28 @@ class MainWindow(ctk.CTk):
         # Status bar
         self.setup_status_bar(main_container)
     
+    def show_gmail(self):
+        self.hide_all_tabs()
+        if self.gmail_tab is None:
+            self.gmail_tab = GmailTab(self.main_content, self.assistant, self.config_manager)
+        self.gmail_tab.pack(fill="both", expand=True)
+    
     def setup_sidebar(self, parent):
         """Nastaví moderný sidebar"""
         sidebar = ctk.CTkFrame(parent, width=200, corner_radius=0)
         sidebar.grid(row=0, column=0, rowspan=2, sticky="nsew")
         sidebar.grid_propagate(False)
+        self.gmail_button = ctk.CTkButton(
+            self.sidebar,
+            text="📧 Gmail",
+            command=self.show_gmail,
+            width=180,
+            height=40,
+            font=ctk.CTkFont(size=14),
+            fg_color="transparent",
+            anchor="w"
+        )
+        self.gmail_button.pack(pady=5)
         
         # Logo/názov aplikácie
         logo_frame = ctk.CTkFrame(sidebar, fg_color="transparent", height=80)

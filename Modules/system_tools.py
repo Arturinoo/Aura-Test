@@ -58,6 +58,7 @@ class SystemTools:
             if battery:
                 percent = battery.percent
                 plugged = "Áno" if battery.power_plugged else "Nie"
+                # OPRAVA: Pridaná chýbajúca zátvorka pre f-string
                 time_left = f"{battery.secsleft // 3600}h {(battery.secsleft % 3600) // 60}m" if battery.secsleft > 0 else "Neznámy"
                 return f"🔋 **Stav batérie:** {percent}% | Zapojená: {plugged} | Zostáva: {time_left}"
             else:
@@ -73,10 +74,7 @@ class SystemTools:
             free_gb = disk.free // (1024**3)
             percent_used = (disk.used / disk.total) * 100
             
-            return f"💾 **Úložisko:**
-- Celkom: {total_gb} GB
-- Použité: {used_gb} GB ({percent_used:.1f}%)
-- Voľné: {free_gb} GB"
+            return f"💾 **Úložisko:**\n- Celkom: {total_gb} GB\n- Použité: {used_gb} GB ({percent_used:.1f}%)\n- Voľné: {free_gb} GB"
         except Exception as e:
             return f"❌ Chyba pri získavaní informácií o úložisku: {str(e)}"
     
@@ -88,10 +86,7 @@ class SystemTools:
             available_gb = memory.available // (1024**3)
             percent_used = memory.percent
             
-            return f"🧠 **Pamäť RAM:**
-- Celkom: {total_gb} GB
-- Použité: {used_gb} GB ({percent_used}%)
-- Dostupné: {available_gb} GB"
+            return f"🧠 **Pamäť RAM:**\n- Celkom: {total_gb} GB\n- Použité: {used_gb} GB ({percent_used}%)\n- Dostupné: {available_gb} GB"
         except Exception as e:
             return f"❌ Chyba pri získavaní informácií o pamäti: {str(e)}"
     
@@ -101,12 +96,9 @@ class SystemTools:
             cpu_count = psutil.cpu_count()
             cpu_freq = psutil.cpu_freq()
             
-            info = f"⚡ **CPU:**
-- Použitie: {cpu_percent}%
-- Jadrá: {cpu_count}"
+            info = f"⚡ **CPU:**\n- Použitie: {cpu_percent}%\n- Jadrá: {cpu_count}"
             if cpu_freq:
-                info += f"
-- Frekvencia: {cpu_freq.current:.0f} MHz"
+                info += f"\n- Frekvencia: {cpu_freq.current:.0f} MHz"
             return info
         except Exception as e:
             return f"❌ Chyba pri získavaní informácií o CPU: {str(e)}"
@@ -117,17 +109,12 @@ class SystemTools:
             local_ip = socket.gethostbyname(hostname)
             
             interfaces = psutil.net_if_addrs()
-            info = f"🔌 **Sieťové informácie:**
-- Hostname: {hostname}
-- Lokálna IP: {local_ip}
-
-**Aktívne rozhrania:**"
+            info = f"🔌 **Sieťové informácie:**\n- Hostname: {hostname}\n- Lokálna IP: {local_ip}\n\n**Aktívne rozhrania:**"
             
             for interface_name, interface_addresses in interfaces.items():
                 for address in interface_addresses:
                     if str(address.family) == 'AddressFamily.AF_INET':
-                        info += f"
-- {interface_name}: {address.address}"
+                        info += f"\n- {interface_name}: {address.address}"
             
             return info
         except Exception as e:
@@ -145,15 +132,12 @@ class SystemTools:
             # Zoradiť podľa využitia pamäte
             processes.sort(key=lambda x: x['memory_percent'] or 0, reverse=True)
             
-            info = "📊 **Top 5 procesov podľa pamäte:**
-"
+            info = "📊 **Top 5 procesov podľa pamäte:**\n"
             for i, proc in enumerate(processes[:5]):
                 memory = proc['memory_percent'] or 0
-                info += f"{i+1}. {proc['name']} (PID: {proc['pid']}) - {memory:.1f}% RAM
-"
+                info += f"{i+1}. {proc['name']} (PID: {proc['pid']}) - {memory:.1f}% RAM\n"
             
-            info += f"
-Celkový počet procesov: {len(processes)}"
+            info += f"\nCelkový počet procesov: {len(processes)}"
             return info
         except Exception as e:
             return f"❌ Chyba pri získavaní zoznamu procesov: {str(e)}"

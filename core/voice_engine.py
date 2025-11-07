@@ -1,171 +1,139 @@
+import speech_recognition as sr
+import pyttsx3
 import threading
-import queue
-import time
-from typing import Callable, Optional
-
-try:
-    import speechrecognition as sr
-    import pyttsx3
-    HAS_VOICE_DEPS = True
-except ImportError:
-    HAS_VOICE_DEPS = False
-    print("❌ Hlasové knižnice nie sú nainštalované. Hlasové funkcie budú obmedzené.")
 
 class VoiceEngine:
-    def __init__(self, config_manager):
-        self.config_manager = config_manager
-        self.command_queue = queue.Queue()
+    def __init__(self):
+        self.is_available = False
         self.is_listening = False
-        self.is_speaking = False
-        self.wake_word_detected = False
-        self.current_theme = "dark"
+        self.listening_thread = None
         
-        if HAS_VOICE_DEPS:
-            self.setup_voice()
-        else:
-            print("⚠️  VoiceEngine beží v obmedzenom režime")
-        
-        self.setup_hotkeys()
-        
-    def setup_voice(self):
-        """Nastaví hlasový engine ak sú knižnice dostupné"""
-        if not HAS_VOICE_DEPS:
-            return
-            
+        # Skús inicializovať rozpoznávanie reči
         try:
             self.recognizer = sr.Recognizer()
             self.microphone = sr.Microphone()
-            self.tts_engine = pyttsx3.init()
-            
-            # Nastav hlas pre text-to-speech
-            voices = self.tts_engine.getProperty('voices')
-            if voices:
-                self.tts_engine.setProperty('voice', voices[0].id)
-            
-            settings = self.config_manager.load_settings()
-            speech_rate = settings.get("voice", {}).get("speech_rate", 150)
-            self.tts_engine.setProperty('rate', speech_rate)
-            self.tts_engine.setProperty('volume', 0.8)
-            
-            print("✅ VoiceEngine inicializovaný")
-            
+            self.is_available = True
+            print("✅ Hlasové knižnice sú nainštalované.")
         except Exception as e:
-            print(f"❌ Chyba pri inicializácii VoiceEngine: {e}")
-    
-    def setup_hotkeys(self):
-        """Nastaví hlasové hotkeys"""
-        self.hotkeys = {
-            "stop": ["zastav", "stop", "prestaň", "koniec"],
-            "cancel": ["zruš", "cancel", "zrušiť"],
-            "help": ["pomoc", "help", "nápoveda"]
-        }
-    
-    def listen(self, timeout: int = 5) -> str:
-        """Počúva hlasový príkaz"""
-        if not self.is_voice_enabled():
-            return "Hlasové ovládanie je vypnuté"
+            print("❌ Hlasové knižnice nie sú nainštalované. Hlasové funkcie budú obmedzené.")
+            self.is_available = False
+
+        # Inicializácia text-to-speech
+        try:
+            self.tts_engine = pyttsx3.init()
+            self.tts_engine.setProperty('rate', 150)
+            self.tts_engine.setProperty('volume', 0.8)
+        except:
+            self.tts_engine = None
+
+    def speak(self, text):
+        if not self.is_available or self.tts_engine is None:
+            print(f"🔊 (TTS) {text}")
+            return
         
-        if not HAS_VOICE_DEPS:
-            return "Hlasové knižnice nie sú nainštalované"
+        try:
+            self.tts_engine.say(text)
+            self.tts_engine.runAndWait()
+        except Exception as e:
+            print(f"❌ Chyba pri prehrávaní hlasu: {e}")
+
+    def listen(self):
+        if not self.is_available:
+            print("❌ Hlasové knižnice nie sú nainštalované. Nepodporuje sa rozpoznávanie reči.")
+            return None
         
         try:
             with self.microphone as source:
-                print("🎤 Prispôsobujem sa šumu...")
-                self.recognizer.adjust_for_ambient_noise(source, duration=1)
                 print("🎤 Počúvam...")
-                
-                audio = self.recognizer.listen(source, timeout=timeout, phrase_time_limit=10)
-                
-            print("🔍 Prepisujem reč...")
+                self.recognizer.adjust_for_ambient_noise(source)
+                audio = self.recognizer.listen(source, timeout=5)
+            
             text = self.recognizer.recognize_google(audio, language="sk-SK")
-            print(f"📝 Rozpoznané: {text}")
-            
+            print(f"🎤 Rozpoznané: {text}")
             return text
-            
         except sr.WaitTimeoutError:
-            return ""
-        except sr.UnknownValueError:
-            return "❌ Nerozpoznal som reč"
-        except sr.RequestError as e:
-            return f"❌ Chyba služby: {e}"
+            print("❌ Časový limit pre počúvanie vypršal.")
+            return None
         except Exception as e:
-            return f"❌ Neočakávaná chyba: {e}"
-    
-    def process_hotkeys(self, text: str) -> str:
-        """Spracuje hlasové hotkeys"""
-        text_lower = text.lower()
-        
-        for action, keywords in self.hotkeys.items():
-            if any(keyword in text_lower for keyword in keywords):
-                return f"🔧 HOTKEY: {action}"
-        
-        return text
-    
-    def speak(self, text: str, wait: bool = False):
-        """Prehovorí text"""
-        if not text or self.is_speaking or not HAS_VOICE_DEPS:
+            print(f"❌ Chyba pri rozpoznávaní reči: {e}")
+            return None
+
+    def listen_continuous(self, callback, wake_word="aura"):
+        """
+        Spustí nepretržité počúvanie s wake word
+        """
+        if not self.is_available:
+            print("❌ Hlasové knižnice nie sú nainštalované. Nepodporuje sa nepretržité počúvanie.")
             return
         
-        self.is_speaking = True
-        
-        def speak_worker():
-            try:
-                self.tts_engine.say(text)
-                self.tts_engine.runAndWait()
-            except Exception as e:
-                print(f"❌ Chyba pri prehováraní: {e}")
-            finally:
-                self.is_speaking = False
-        
-        thread = threading.Thread(target=speak_worker, daemon=True)
-        thread.start()
-        
-        if wait:
-            thread.join()
-    
-    def speak_async(self, text: str):
-        """Prehovorí text asynchrónne"""
-        self.speak(text, wait=False)
-    
-    def stop_speaking(self):
-        """Zastaví prehováranie"""
-        if not HAS_VOICE_DEPS:
-            return
+        def listening_loop():
+            self.is_listening = True
+            print("🎤 Nepretržité počúvanie spustené... Povedz 'aura' pre aktiváciu.")
             
-        try:
-            self.tts_engine.stop()
-            self.is_speaking = False
-            print("🔇 Prehováranie zastavené")
-        except:
-            pass
-    
-    def is_voice_enabled(self) -> bool:
-        """Skontroluje, či je hlasové ovládanie povolené"""
-        if not HAS_VOICE_DEPS:
-            return False
-            
-        settings = self.config_manager.load_settings()
-        return settings.get("voice", {}).get("enabled", True)
-    
-    def update_settings(self):
-        """Aktualizuje nastavenia z configu"""
-        if not HAS_VOICE_DEPS:
-            return
-            
-        settings = self.config_manager.load_settings()
-        voice_settings = settings.get("voice", {})
+            while self.is_listening:
+                try:
+                    # Počúvaj pre wake word
+                    with self.microphone as source:
+                        self.recognizer.adjust_for_ambient_noise(source)
+                        audio = self.recognizer.listen(source, timeout=1, phrase_time_limit=3)
+                    
+                    try:
+                        text = self.recognizer.recognize_google(audio, language="sk-SK").lower()
+                        print(f"🔍 Rozpoznané: {text}")
+                        
+                        # Skontroluj wake word
+                        if wake_word.lower() in text:
+                            print("✅ Wake word rozpoznané! Počúvam príkaz...")
+                            # Počúvaj príkaz
+                            with self.microphone as source:
+                                self.recognizer.adjust_for_ambient_noise(source)
+                                audio = self.recognizer.listen(source, timeout=5)
+                            command = self.recognizer.recognize_google(audio, language="sk-SK")
+                            callback(command)
+                            
+                    except Exception as e:
+                        # Ignoruj chyby rozpoznávania
+                        continue
+                        
+                except Exception as e:
+                    # Timeout je normálny, pokračuj v slučke
+                    if "timeout" not in str(e).lower():
+                        print(f"❌ Chyba pri počúvaní: {e}")
         
-        if "speech_rate" in voice_settings:
-            self.tts_engine.setProperty('rate', voice_settings["speech_rate"])
-        
-        print("✅ Hlasové nastavenia aktualizované")
-    
-    def get_voice_status(self) -> dict:
-        """Vráti stav hlasového engine"""
-        return {
-            "listening": self.is_listening,
-            "speaking": self.is_speaking,
-            "wake_word_detected": self.wake_word_detected,
-            "enabled": self.is_voice_enabled(),
-            "dependencies_available": HAS_VOICE_DEPS
-        }
+        # Spusti počúvanie v samostatnom vlákne
+        self.listening_thread = threading.Thread(target=listening_loop, daemon=True)
+        self.listening_thread.start()
+
+    def stop_listening(self):
+        self.is_listening = False
+        if self.listening_thread:
+            self.listening_thread.join(timeout=1)
+
+    def get_voice_status(self):
+        """
+        Vráti stav hlasového engine pre UI
+        """
+        if not self.is_available:
+            return {
+                "status": "nedostupné",
+                "message": "Hlasové knižnice nie sú nainštalované",
+                "listening": False,
+                "wake_word_detected": False,
+                "speaking": False
+            }
+        elif self.is_listening:
+            return {
+                "status": "počúva",
+                "message": "Nepretržité počúvanie aktívne",
+                "listening": True,
+                "wake_word_detected": False,
+                "speaking": False
+            }
+        else:
+            return {
+                "status": "dostupné",
+                "message": "Hlasové funkcie pripravené",
+                "listening": False,
+                "wake_word_detected": False,
+                "speaking": False
+            }
