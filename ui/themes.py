@@ -1,94 +1,171 @@
+# ui/themes.py
 import customtkinter as ctk
-from typing import Dict, Any
+import math
+import time
+from typing import Dict, Any, List
+import threading
 
-class ThemeManager:
-    """Manažér tém pre aplikáciu"""
+class PurpleAuraTheme:
+    """PurpleAura téma s animáciami a efektmi"""
     
-    THEMES = {
-        "dark": {
-            "name": "Tmavá",
-            "bg": "#1a1a1a",
-            "bg_secondary": "#2d2d2d",
-            "bg_tertiary": "#3d3d3d",
-            "accent": "#0078d4",
-            "accent_hover": "#106ebe",
-            "text_primary": "#ffffff",
-            "text_secondary": "#cccccc",
-            "success": "#107c10",
-            "warning": "#d83b01",
-            "error": "#e81123",
-            "border": "#404040"
-        },
-        "light": {
-            "name": "Svetlá", 
-            "bg": "#ffffff",
-            "bg_secondary": "#f3f3f3",
-            "bg_tertiary": "#e1e1e1",
-            "accent": "#0078d4",
-            "accent_hover": "#106ebe",
-            "text_primary": "#000000",
-            "text_secondary": "#666666",
-            "success": "#107c10",
-            "warning": "#d83b01",
-            "error": "#e81123",
-            "border": "#d1d1d1"
-        },
-        "blue": {
-            "name": "Modrá",
-            "bg": "#0d1b2a",
-            "bg_secondary": "#1b263b",
-            "bg_tertiary": "#415a77",
-            "accent": "#ff9e00",
-            "accent_hover": "#ffb133",
-            "text_primary": "#e0e1dd",
-            "text_secondary": "#a8b0b9",
-            "success": "#4caf50",
-            "warning": "#ff9800",
-            "error": "#f44336",
-            "border": "#415a77"
-        },
-        "green": {
-            "name": "Zelená",
-            "bg": "#1b4332",
-            "bg_secondary": "#2d6a4f",
-            "bg_tertiary": "#40916c",
-            "accent": "#ff9e00",
-            "accent_hover": "#ffb133",
-            "text_primary": "#d8f3dc",
-            "text_secondary": "#b7e4c7",
-            "success": "#4caf50",
-            "warning": "#ff9800",
-            "error": "#f44336",
-            "border": "#40916c"
-        }
+    # Základné fialové farby
+    COLORS = {
+        "deep_purple": "#2D033B",
+        "royal_purple": "#4C1A57", 
+        "vibrant_purple": "#6A2C70",
+        "lavender": "#A660C9",
+        "light_lavender": "#C191D9",
+        "electric_purple": "#8100FF",
+        "magenta": "#FF00FF",
+        "neon_purple": "#BC13FE",
+        "dark_purple": "#1A0030"
     }
     
-    @classmethod
-    def get_theme(cls, theme_name: str) -> Dict[str, Any]:
-        """Vráti farby pre danú tému"""
-        return cls.THEMES.get(theme_name, cls.THEMES["dark"])
-    
-    @classmethod
-    def get_available_themes(cls):
-        """Vráti zoznam dostupných tém"""
-        return list(cls.THEMES.keys())
-    
-    @classmethod
-    def apply_theme(cls, theme_name: str):
-        """Aplikuje tému na celú aplikáciu"""
-        theme = cls.get_theme(theme_name)
-        
-        # Nastav CustomTkinter theme
-        ctk.set_appearance_mode("dark" if theme_name in ["dark", "blue", "green"] else "light")
-        
-        # Vytvor custom color theme
-        custom_theme = {
-            "fg_color": theme["bg_secondary"],
-            "top_fg_color": theme["bg_secondary"],
-            "text_color": theme["text_primary"],
-            "button_color": theme["accent"],
-            "button_hover_color": theme["accent_hover"],
-            "border_color": theme["border"]
+    @staticmethod
+    def get_theme(theme_name="purple_aura"):
+        """Vráti PurpleAura tému"""
+        return {
+            "bg": PurpleAuraTheme.COLORS["deep_purple"],
+            "bg_secondary": PurpleAuraTheme.COLORS["royal_purple"],
+            "bg_tertiary": PurpleAuraTheme.COLORS["vibrant_purple"],
+            "accent": PurpleAuraTheme.COLORS["electric_purple"],
+            "accent_secondary": PurpleAuraTheme.COLORS["lavender"],
+            "accent_glow": PurpleAuraTheme.COLORS["neon_purple"],
+            "text_primary": "#FFFFFF",
+            "text_secondary": "#E0E0E0",
+            "text_accent": PurpleAuraTheme.COLORS["light_lavender"],
+            "success": "#00FF88",
+            "warning": "#FFAA00",
+            "error": "#FF4444",
+            "card_bg": PurpleAuraTheme.COLORS["royal_purple"],
+            "glass_effect": "rgba(74, 20, 140, 0.3)",
+            "shadow_color": "rgba(129, 0, 255, 0.3)"
         }
+
+class AnimationManager:
+    """Manažér pre animácie a efekty"""
+    
+    @staticmethod
+    def pulse_widget(widget, duration=2000):
+        """Pulzujúca animácia pre widget"""
+        def pulse():
+            start_time = time.time()
+            while time.time() - start_time < duration / 1000:
+                progress = (time.time() - start_time) / (duration / 1000)
+                alpha = 0.5 + 0.5 * math.sin(progress * math.pi * 2)
+                try:
+                    widget.configure(fg_color=AnimationManager.mix_colors(
+                        PurpleAuraTheme.COLORS["vibrant_purple"],
+                        PurpleAuraTheme.COLORS["neon_purple"],
+                        alpha
+                    ))
+                except:
+                    break
+                time.sleep(0.05)
+            # Reset na pôvodnú farbu
+            try:
+                widget.configure(fg_color=PurpleAuraTheme.COLORS["vibrant_purple"])
+            except:
+                pass
         
-        return theme
+        thread = threading.Thread(target=pulse, daemon=True)
+        thread.start()
+    
+    @staticmethod
+    def mix_colors(color1, color2, ratio):
+        """Zmieša dve farby podľa pomeru"""
+        try:
+            r1, g1, b1 = int(color1[1:3], 16), int(color1[3:5], 16), int(color1[5:7], 16)
+            r2, g2, b2 = int(color2[1:3], 16), int(color2[3:5], 16), int(color2[5:7], 16)
+            
+            r = int(r1 + (r2 - r1) * ratio)
+            g = int(g1 + (g2 - g1) * ratio)
+            b = int(b1 + (b2 - b1) * ratio)
+            
+            return f"#{r:02x}{g:02x}{b:02x}"
+        except:
+            return color1
+    
+    @staticmethod
+    def create_glow_effect(widget):
+        """Pridá glow efekt widgetu"""
+        try:
+            widget.configure(
+                border_color=PurpleAuraTheme.COLORS["electric_purple"],
+                border_width=2
+            )
+        except:
+            pass
+
+class ThemeManager:
+    """Manažér tém a štýlov"""
+    
+    @staticmethod
+    def get_theme(theme_name="purple_aura"):
+        return PurpleAuraTheme.get_theme(theme_name)
+    
+    @staticmethod
+    def apply_theme(theme_name):
+        return ThemeManager.get_theme(theme_name)
+    
+    @staticmethod
+    def setup_customtkinter_theme():
+        """Nastaví CustomTkinter pre PurpleAura tému - OPRAVENÁ VERZIA"""
+        ctk.set_appearance_mode("dark")
+        
+        # ✅ OPRAVENÉ: Vytvoríme vlastnú tému pomocou set_default_color_theme
+        try:
+            # Vytvoríme dočasný JSON súbor s PurpleAura témou
+            import json
+            import tempfile
+            import os
+            
+            purple_theme = {
+                "CTk": {
+                    "fg_color": [PurpleAuraTheme.COLORS["deep_purple"], PurpleAuraTheme.COLORS["dark_purple"]],
+                    "top_fg_color": [PurpleAuraTheme.COLORS["royal_purple"], PurpleAuraTheme.COLORS["vibrant_purple"]],
+                    "text_color": ["#FFFFFF", "#FFFFFF"]
+                },
+                "CTkFrame": {
+                    "fg_color": [PurpleAuraTheme.COLORS["royal_purple"], PurpleAuraTheme.COLORS["vibrant_purple"]],
+                    "top_fg_color": [PurpleAuraTheme.COLORS["vibrant_purple"], PurpleAuraTheme.COLORS["royal_purple"]],
+                    "border_color": [PurpleAuraTheme.COLORS["electric_purple"], PurpleAuraTheme.COLORS["lavender"]]
+                },
+                "CTkButton": {
+                    "fg_color": [PurpleAuraTheme.COLORS["electric_purple"], PurpleAuraTheme.COLORS["vibrant_purple"]],
+                    "hover_color": [PurpleAuraTheme.COLORS["lavender"], PurpleAuraTheme.COLORS["light_lavender"]],
+                    "text_color": ["white", "white"],
+                    "border_color": [PurpleAuraTheme.COLORS["neon_purple"], PurpleAuraTheme.COLORS["magenta"]]
+                },
+                "CTkLabel": {
+                    "text_color": ["white", "white"],
+                    "fg_color": ["transparent", "transparent"]
+                },
+                "CTkEntry": {
+                    "fg_color": [PurpleAuraTheme.COLORS["dark_purple"], PurpleAuraTheme.COLORS["royal_purple"]],
+                    "border_color": [PurpleAuraTheme.COLORS["electric_purple"], PurpleAuraTheme.COLORS["lavender"]],
+                    "text_color": ["white", "white"]
+                },
+                "CTkTextbox": {
+                    "fg_color": [PurpleAuraTheme.COLORS["dark_purple"], PurpleAuraTheme.COLORS["royal_purple"]],
+                    "border_color": [PurpleAuraTheme.COLORS["electric_purple"], PurpleAuraTheme.COLORS["lavender"]],
+                    "text_color": ["white", "white"]
+                }
+            }
+            
+            # Uložíme do dočasného súboru
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                json.dump(purple_theme, f)
+                temp_theme_file = f.name
+            
+            # Nastavíme tému
+            ctk.set_default_color_theme(temp_theme_file)
+            
+            # Súbor sa automaticky vymaže po skončení programu
+            import atexit
+            atexit.register(lambda: os.unlink(temp_theme_file) if os.path.exists(temp_theme_file) else None)
+            
+        except Exception as e:
+            print(f"⚠️ Nepodarilo sa nastaviť PurpleAura tému: {e}")
+            # Fallback na modrú tému
+            ctk.set_default_color_theme("blue")

@@ -3,32 +3,44 @@ from typing import Dict, Any, List, Callable
 import importlib
 import os
 import time
-from .voice_engine import VoiceEngine  # ✅ PRIDANÉ
+import importlib.util  # ✅ PRIDANÉ - chýbajúci import
+
 try:
     from modules.gmail_manager import GmailManager
 except ImportError:
     print("⚠️  GmailManager nie je dostupný")
+    GmailManager = None  # ✅ PRIDANÉ - definovať ako None pri chybe
+
+try:
+    from .voice_engine import VoiceEngine  # ✅ PRIDANÉ try-except
+except ImportError:
+    print("⚠️  VoiceEngine nie je dostupný")
+    VoiceEngine = None
 
 class AIAssistant:
     def __init__(self, config_manager):
         self.config_manager = config_manager
-        self.model_name = "qwen3"  # Upravte podľa vášho modelu
+        self.model_name = "qwen3"
         self.modules = {}
-        self.voice_engine = VoiceEngine()  # ✅ PRIDANÉ
-
-        self.gmail_manager = None
-        try:
-            self.gmail_manager = GmailManager()
-        except Exception as e:
-            print(f"⚠️  Nepodarilo sa inicializovať GmailManager: {e}")
         
-        # PRIDANÉ: Konverzačný stav
+        # ✅ OPRAVENÉ: Bezpečná inicializácia VoiceEngine
+        self.voice_engine = VoiceEngine() if VoiceEngine else None
+        
+        # ✅ OPRAVENÉ: Bezpečná inicializácia GmailManager
+        self.gmail_manager = None
+        if GmailManager:
+            try:
+                self.gmail_manager = GmailManager(config_manager)
+            except Exception as e:
+                print(f"⚠️  Nepodarilo sa inicializovať GmailManager: {e}")
+        
+        # Konverzačný stav
         self.conversation_context = {
-            'history': [],  # História konverzácie
-            'current_topic': None,  # Aktuálna téma
-            'mentioned_entities': set(),  # Spomenuté entity
-            'user_preferences': {},  # Používateľské preferencie
-            'last_intent': None  # Posledný rozpoznaný zámer
+            'history': [],
+            'current_topic': None,
+            'mentioned_entities': set(),
+            'user_preferences': {},
+            'last_intent': None
         }
         
         self.load_modules()
@@ -46,21 +58,34 @@ class AIAssistant:
         
         for filename in os.listdir(modules_dir):
             if filename.endswith(".py") and filename != "__init__.py":
-                module_name = filename[:-3]  # Odstráni .py
+                module_name = filename[:-3]
                 try:
                     print(f"🔧 Načítavam modul: {module_name}")
                     
-                    # Dynamický import
-                    spec = importlib.util.spec_from_file_location(module_name, f"modules/{filename}")
+                    # ✅ OPRAVENÉ: Správna cesta k modulu
+                    module_path = os.path.join(modules_dir, filename)
+                    spec = importlib.util.spec_from_file_location(module_name, module_path)
+                    if spec is None:
+                        print(f"❌ Nepodarilo sa načítať špecifikáciu pre {module_name}")
+                        continue
+                        
                     module = importlib.util.module_from_spec(spec)
                     spec.loader.exec_module(module)
                     
-                    # Nájdeme hlavnú triedu (predpokladáme, že má rovnaký názov ako súbor)
+                    # Nájdeme hlavnú triedu
                     class_name = module_name.title().replace('_', '')
                     if hasattr(module, class_name):
                         module_class = getattr(module, class_name)
-                        self.modules[module_name] = module_class()
-                        print(f"✅ Načítaný modul: {module_name}")
+                        # ✅ OPRAVENÉ: Pokúsme sa inicializovať s config_manager
+                        try:
+                            module_instance = module_class(self.config_manager)
+                            self.modules[module_name] = module_instance
+                            print(f"✅ Načítaný modul: {module_name}")
+                        except TypeError:
+                            # Ak neakceptuje config_manager, skúsme bez neho
+                            module_instance = module_class()
+                            self.modules[module_name] = module_instance
+                            print(f"✅ Načítaný modul: {module_name} (bez config_manager)")
                     else:
                         print(f"⚠️  Modul {module_name} nemá triedu {class_name}")
                         
@@ -81,17 +106,17 @@ class AIAssistant:
             
             # Najprv skús nájsť špecifický modul pre príkaz
             for module_name, module_instance in self.modules.items():
-                if hasattr(module_instance, 'can_handle') and module_instance.can_handle(command):
-                    print(f"🔧 Používam modul: {module_name}")
-                    response = await module_instance.handle(command)
-                    # Aktualizuj kontext
-                    self.update_conversation_context(command, response, f"module_{module_name}")
-                    return response
+                if hasattr(module_instance, 'can_handle') and callable(getattr(module_instance, 'can_handle')):
+                    if module_instance.can_handle(command):
+                        print(f"🔧 Používam modul: {module_name}")
+                        if hasattr(module_instance, 'handle') and callable(getattr(module_instance, 'handle')):
+                            response = await module_instance.handle(command)
+                            self.update_conversation_context(command, response, f"module_{module_name}")
+                            return response
             
             # Ak žiaden modul nevie spracovať, použi AI s kontextom
             print("🤖 Používam AI model...")
             response = await self._ask_ai_with_context(command, context_summary)
-            # Aktualizuj kontext
             self.update_conversation_context(command, response, "ai_general")
             return response
             
@@ -114,19 +139,21 @@ Odpovedaj prirodzene, berúc do úvahy predchádzajúci kontext. Ak sa používa
             else:
                 contextual_prompt = prompt
             
-            response = ollama.chat(
-                model=self.model_name,
-                messages=[{'role': 'user', 'content': contextual_prompt}]
-            )
-            return response['message']['content']
+            # ✅ OPRAVENÉ: Ošetrenie Ollama volania
+            try:
+                response = ollama.chat(
+                    model=self.model_name,
+                    messages=[{'role': 'user', 'content': contextual_prompt}]
+                )
+                return response['message']['content']
+            except Exception as ollama_error:
+                return f"❌ Ollama chyba: {str(ollama_error)}. Skontrolujte, či je model {self.model_name} nainštalovaný."
+                
         except Exception as e:
             return f"❌ Chyba pri komunikácii s AI: {str(e)}"
     
-    # PRIDANÉ: Metódy pre správu konverzačného stavu
     def update_conversation_context(self, user_input, ai_response, detected_intent=None):
-        """
-        Aktualizuje konverzačný kontext na základe novej výmeny
-        """
+        """Aktualizuje konverzačný kontext na základe novej výmeny"""
         # Pridaj do histórie
         self.conversation_context['history'].append({
             'user': user_input,
@@ -143,35 +170,32 @@ Odpovedaj prirodzene, berúc do úvahy predchádzajúci kontext. Ak sa používa
         if detected_intent:
             self.conversation_context['last_intent'] = detected_intent
         
-        # Extrahuj entity (jednoduchá verzia)
+        # Extrahuj entity
         self._extract_entities(user_input)
         
         # Aktualizuj aktuálnu tému
         self._update_current_topic(user_input, ai_response)
     
     def _extract_entities(self, text):
-        """
-        Jednoduchá extrakcia entít z textu
-        """
+        """Jednoduchá extrakcia entít z textu"""
         words = text.split()
         
         # Jednoduchá detekcia mien (veľké písmeno na začiatku slova)
         for word in words:
-            if (len(word) > 2 and word[0].isupper() and 
-                word not in ['Ahoj', 'Čau', 'Dobrý', 'Dobrý', 'Deň', 'Večer', 'Ráno']):
-                self.conversation_context['mentioned_entities'].add(word)
+            clean_word = word.strip('.,!?;:()[]{}"\'')
+            if (len(clean_word) > 2 and clean_word[0].isupper() and 
+                clean_word not in ['Ahoj', 'Čau', 'Dobrý', 'Deň', 'Večer', 'Ráno', 'Dobré']):
+                self.conversation_context['mentioned_entities'].add(clean_word)
     
     def _update_current_topic(self, user_input, ai_response):
-        """
-        Aktualizuje aktuálnu tému konverzácie
-        """
-        # Jednoduchá detekcia témy na základe kľúčových slov
+        """Aktualizuje aktuálnu tému konverzácie"""
         topic_keywords = {
-            'počasie': ['počasie', 'teplota', 'dážď', 'slnko', 'teplo', 'zima', 'teplota'],
+            'počasie': ['počasie', 'teplota', 'dážď', 'slnko', 'teplo', 'zima'],
             'systém': ['systém', 'pamäť', 'cpu', 'bateria', 'disk', 'procesor', 'ram'],
             'súbory': ['súbor', 'priečinok', 'otvor', 'čítaj', 'zapisovať', 'adresár'],
             'web': ['internet', 'hľadať', 'prehľadávať', 'stránka', 'web', 'vyhľadaj'],
-            'kód': ['kód', 'program', 'script', 'python', 'funkcia', 'class']
+            'kód': ['kód', 'program', 'script', 'python', 'funkcia', 'class'],
+            'email': ['email', 'správa', 'gmail', 'odoslať', 'prijať', 'doručená']
         }
         
         input_lower = user_input.lower()
@@ -183,14 +207,12 @@ Odpovedaj prirodzene, berúc do úvahy predchádzajúci kontext. Ak sa používa
         # Ak sa nenašla žiadna téma, ponechaj predchádzajúcu
     
     def get_context_summary(self):
-        """
-        Vráti súhrn kontextu pre AI model
-        """
+        """Vráti súhrn kontextu pre AI model"""
         if not self.conversation_context['history']:
             return ""
         
         # Zostav kontextový súhrn z posledných niekoľkých výmen
-        recent_history = self.conversation_context['history'][-3:]  # Posledné 3 výmeny
+        recent_history = self.conversation_context['history'][-3:]
         context_lines = []
         
         for exchange in recent_history:
@@ -221,9 +243,7 @@ Odpovedaj prirodzene, berúc do úvahy predchádzajúci kontext. Ak sa používa
         }
     
     def clear_conversation_context(self):
-        """
-        Vymaže konverzačný kontext (nová konverzácia)
-        """
+        """Vymaže konverzačný kontext (nová konverzácia)"""
         self.conversation_context = {
             'history': [],
             'current_topic': None,
@@ -239,10 +259,12 @@ Odpovedaj prirodzene, berúc do úvahy predchádzajúci kontext. Ak sa používa
             action = hotkey_command.replace("🔧 HOTKEY:", "").strip()
             
             if action == "stop":
-                self.voice_engine.stop_speaking()
+                if self.voice_engine:
+                    self.voice_engine.stop_speaking()
                 return "🔇 Prehováranie zastavené"
             elif action == "cancel":
-                self.voice_engine.stop_listening()
+                if self.voice_engine:
+                    self.voice_engine.stop_listening()
                 return "🔇 Počúvanie zrušené"
             elif action == "help":
                 help_text = """
@@ -264,23 +286,44 @@ Odpovedaj prirodzene, berúc do úvahy predchádzajúci kontext. Ak sa používa
     
     def start_voice_listening(self, callback: Callable[[str], None]):
         """Spustí nepretržité hlasové počúvanie"""
+        if not self.voice_engine:
+            print("❌ VoiceEngine nie je dostupný")
+            return
+            
         settings = self.config_manager.load_settings()
         wake_word = settings.get("voice", {}).get("wake_word", "asistent")
         self.voice_engine.listen_continuous(callback, wake_word)
     
     def stop_voice_listening(self):
         """Zastaví hlasové počúvanie"""
-        self.voice_engine.stop_listening()
+        if self.voice_engine:
+            self.voice_engine.stop_listening()
     
     def speak_response(self, text: str):
         """Prehovorí odpoveď"""
-        self.voice_engine.speak(text)
+        if self.voice_engine:
+            self.voice_engine.speak(text)
+        else:
+            print(f"🔊 (VoiceEngine nie je dostupný): {text}")
     
     def get_voice_status(self) -> dict:
         """Vráti stav hlasového engine"""
-        return self.voice_engine.get_voice_status()
+        if self.voice_engine:
+            return self.voice_engine.get_voice_status()
+        return {"status": "unavailable", "reason": "VoiceEngine not initialized"}
     
     def update_voice_settings(self):
         """Aktualizuje hlasové nastavenia"""
         # Táto metóda môže byť implementovaná neskôr
         pass
+
+    # ✅ PRIDANÉ: Synchronná verzia pre prípady, keď asyncio nie je dostupné
+    def process_command_sync(self, command: str) -> str:
+        """Synchronná verzia process_command"""
+        import asyncio
+        try:
+            return asyncio.run(self.process_command(command))
+        except RuntimeError:
+            # Ak už beží event loop, použijeme existujúci
+            loop = asyncio.get_event_loop()
+            return loop.run_until_complete(self.process_command(command))
