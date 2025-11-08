@@ -1,0 +1,68 @@
+{
+  "timestamp": "2025-11-08T00:59:15.735548",
+  "messages": [
+    {
+      "sender": "assistant",
+      "text": "🌌 VITAJTE V QUANTUM CHATE\n\nSom váš Quantum AI asistent, pripravený pomôcť s:\n\n• 🤖 Pokročilé AI konverzácie\n• 📧 Správa emailov  \n• 🔧 Systémové operácie\n• 📁 Správa súborov\n• 🎨 Tvorivé úlohy\n\nČo by ste chceli preskúmať?",
+      "timestamp": "00:54:27",
+      "is_welcome": true,
+      "datetime": "2025-11-08T00:54:27.004414"
+    },
+    {
+      "sender": "user",
+      "text": "zobraz zložku",
+      "timestamp": "00:55:59",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:55:59.196238"
+    },
+    {
+      "sender": "assistant",
+      "text": "Môžem pomôcť pri zobrazovaní zložky, ale prosím, upresnite, o akú zložku sa jedná alebo čo by ste chceli urobiť so zložkou. 😊",
+      "timestamp": "00:56:17",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:56:17.914262"
+    },
+    {
+      "sender": "user",
+      "text": "list files",
+      "timestamp": "00:56:37",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:56:37.985001"
+    },
+    {
+      "sender": "assistant",
+      "text": "📁 OBSAH ZLOŽKY: .\n──────────────────────────────────────────────────\n📄 .env.example (0.0 B) - 07.11.2025 12:39\n📁 .venv/\n📁 Config/\n📁 Docs/\n📁 Modules/\n📄 README.md (0.0 B) - 07.11.2025 12:39\n📁 __pycache__/\n📄 app.py (2.3 KB) - 07.11.2025 18:46\n📁 assets/\n📁 chat_history/\n📄 config.env (59.0 B) - 07.11.2025 17:20\n📁 core/\n📁 credentials/\n📁 data/\n📄 fix_all.py (9.0 KB) - 07.11.2025 14:34\n📄 fix_import.bat (896.0 B) - 07.11.2025 13:27\n📄 gmail_api.py (10.4 KB) - 07.11.2025 18:20\n📄 gmail_setup.py (1.6 KB) - 07.11.2025 16:54\n📄 gmail_setup_wizard.py (9.5 KB) - 07.11.2025 21:49\n📄 gui.py (0.0 B) - 07.11.2025 12:42\n📄 main.py (1.8 KB) - 07.11.2025 23:07\n📁 plugins/\n📄 quantum_theme.json (775.0 B) - 07.11.2025 22:09\n📄 requirements.txt (344.0 B) - 07.11.2025 20:41\n📁 scripts/\n📄 start_gui.bat (116.0 B) - 07.11.2025 13:17\n📁 tests/\n📁 ui/\n📁 utils/\n",
+      "timestamp": "00:56:38",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:56:38.023026"
+    },
+    {
+      "sender": "user",
+      "text": "🌤️ Počasie",
+      "timestamp": "00:58:38",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:58:38.691949"
+    },
+    {
+      "sender": "assistant",
+      "text": "❌ Nepodarilo sa získať informácie o počasí",
+      "timestamp": "00:58:38",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:58:38.795042"
+    },
+    {
+      "sender": "user",
+      "text": "📁 File Manager",
+      "timestamp": "00:58:42",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:58:42.707101"
+    },
+    {
+      "sender": "assistant",
+      "text": "📌 **File Manager**  \nTáto zložka obsahuje široké spektrum súborov a podzložiek, vrátane kódu, konfigurácií, skriptov a testov. Ak potrebujete otvoriť konkrétny súbor, upraviť zložku alebo vyhľadať niečo špecifické, dajte vedieť – rád vás pomôžem! 😊",
+      "timestamp": "00:59:15",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:59:15.727240"
+    }
+  ]
+}

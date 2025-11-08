@@ -1,0 +1,40 @@
+{
+  "timestamp": "2025-11-08T00:09:00.797873",
+  "messages": [
+    {
+      "sender": "assistant",
+      "text": "🌌 VITAJTE V QUANTUM CHATE\n\nSom váš Quantum AI asistent, pripravený pomôcť s:\n\n• 🤖 Pokročilé AI konverzácie\n• 📧 Správa emailov  \n• 🔧 Systémové operácie\n• 📁 Správa súborov\n• 🎨 Tvorivé úlohy\n\nČo by ste chceli preskúmať?",
+      "timestamp": "00:08:18",
+      "is_welcome": true,
+      "datetime": "2025-11-08T00:08:18.660745"
+    },
+    {
+      "sender": "user",
+      "text": "help",
+      "timestamp": "00:08:40",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:08:40.227376"
+    },
+    {
+      "sender": "assistant",
+      "text": "🎯 **VŠEOBECNÁ NÁPOVEDA - AURA AI ASSISTANT**\n\n**Dostupné kategórie príkazov:**\n\n📁 **SPRÁVA SÚBOROV**\n• Vytváranie, mazanie, premenovávanie súborov a zložiek\n• Čítanie a zápis do súborov\n• Vyhľadávanie a analýza súborov\n\n📧 **EMAIL FUNKCIE** \n• Pripojenie k Gmail účtu\n• Čítanie a odosielanie emailov\n• Organizácia a vyhľadávanie emailov\n\n🖥️ **SYSTÉMOVÉ NÁSTROJE**\n• Informácie o systéme a hardvéri\n• Sledovanie výkonu a batérie\n• Správa procesov a siete\n\n🌐 **WEBOVÉ NÁSTROJE**\n• Kontrola internetového pripojenia\n• Testovanie serverov a webstránok\n\n🤖 **AI A KÓD**\n• Analýza Python kódu\n• Komunikácia s AI modelom\n\n**Špeciálne príkazy:**\n• `pomoc` - Táto nápoveda\n• `príkazy` - Zoznam všetkých príkazov\n• `moduly` - Informácie o moduloch\n\nPre podrobný zoznam príkazov povedz 'príkazy' alebo navštív '🔮 MODULES' v aplikácii!",
+      "timestamp": "00:08:40",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:08:40.275676"
+    },
+    {
+      "sender": "user",
+      "text": "príkazy",
+      "timestamp": "00:09:00",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:09:00.716597"
+    },
+    {
+      "sender": "assistant",
+      "text": "📚 Pre úplný zoznam príkazov navštív záložku '📚 Príkazová príručka' v MODULES sekcii aplikácie. Tam nájdeš všetky dostupné príkazy zoradené podľa modulov!",
+      "timestamp": "00:09:00",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:09:00.789342"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "timestamp": "2025-11-08T00:56:37.987208",
+  "messages": [
+    {
+      "sender": "assistant",
+      "text": "🌌 VITAJTE V QUANTUM CHATE\n\nSom váš Quantum AI asistent, pripravený pomôcť s:\n\n• 🤖 Pokročilé AI konverzácie\n• 📧 Správa emailov  \n• 🔧 Systémové operácie\n• 📁 Správa súborov\n• 🎨 Tvorivé úlohy\n\nČo by ste chceli preskúmať?",
+      "timestamp": "00:54:27",
+      "is_welcome": true,
+      "datetime": "2025-11-08T00:54:27.004414"
+    },
+    {
+      "sender": "user",
+      "text": "zobraz zložku",
+      "timestamp": "00:55:59",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:55:59.196238"
+    },
+    {
+      "sender": "assistant",
+      "text": "Môžem pomôcť pri zobrazovaní zložky, ale prosím, upresnite, o akú zložku sa jedná alebo čo by ste chceli urobiť so zložkou. 😊",
+      "timestamp": "00:56:17",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:56:17.914262"
+    },
+    {
+      "sender": "user",
+      "text": "list files",
+      "timestamp": "00:56:37",
+      "is_welcome": false,
+      "datetime": "2025-11-08T00:56:37.985001"
+    }
+  ]
+}

@@ -11,9 +11,9 @@ import paramiko  # pre SSH
 import subprocess
 
 class FileManager:
-    def __init__(self):
+    def __init__(self, config_manager=None):
         self.supported_commands = [
-            # Základné operácie
+            # Základné operácie so zložkami
             "vytvor zložku", "vytvor priečinok", "create directory", "create folder",
             "zmaž zložku", "zmaž priečinok", "delete directory", "delete folder",
             "vypíš zložku", "zoznam súborov", "list files", "list directory",
@@ -22,28 +22,16 @@ class FileManager:
             "kopíruj súbor", "kopíruj zložku", "copy file", "copy folder",
             "zmaž súbor", "delete file", "odstráň súbor",
             
-            # Nové operácie so súbormi
+            # Operácie so súbormi
             "vytvor súbor", "create file", "vytvor dokument",
             "zapisuj do súboru", "write to file", "zapisuj do dokumentu",
             "čítaj súbor", "read file", "čítaj dokument",
-            "vytvor viac súborov", "create multiple files", "vytvor hromadne súbory",
-            "zapisuj hromadne", "write multiple files", "hromadný zápis",
             
             # Pokročilé operácie
             "nájdi súbor", "find file", "hľadaj súbor",
             "vyhľadaj v súboroch", "search in files", "hľadaj v dokumentoch",
             "zoznam všetkých súborov", "manifest zložky", "folder manifest",
             "veľkosť zložky", "folder size", "veľkosť priečinka",
-            "zjednoť zložky", "unite folders", "skombinuj zložky",
-            "kompresuj zložku", "compress folder", "zip zložku",
-            
-            # Sieťové operácie
-            "pripoj zariadenie", "connect device", "pridaj zariadenie",
-            "zoznam zariadení", "list devices", "zobraz zariadenia",
-            "synchronizuj zložky", "sync folders", "synchronizácia",
-            
-            # UI a vyhľadávanie
-            "otvor file manager", "open file browser", "správca súborov"
         ]
         
         self.connected_devices = {}

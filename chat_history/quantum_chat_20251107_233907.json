@@ -1,0 +1,33 @@
+{
+  "timestamp": "2025-11-07T23:39:07.173965",
+  "messages": [
+    {
+      "sender": "assistant",
+      "text": "🌌 VITAJTE V QUANTUM CHATE\n\nSom váš Quantum AI asistent, pripravený pomôcť s:\n\n• 🤖 Pokročilé AI konverzácie\n• 📧 Správa emailov  \n• 🔧 Systémové operácie\n• 📁 Správa súborov\n• 🎨 Tvorivé úlohy\n\nČo by ste chceli preskúmať?",
+      "timestamp": "23:38:19",
+      "is_welcome": true,
+      "datetime": "2025-11-07T23:38:19.989510"
+    },
+    {
+      "sender": "user",
+      "text": "🖥️ System Info",
+      "timestamp": "23:38:41",
+      "is_welcome": false,
+      "datetime": "2025-11-07T23:38:41.609837"
+    },
+    {
+      "sender": "assistant",
+      "text": "Hello again! 😊 I'm here to help with whatever you need. Could you clarify what you're looking for with \"System Info\"? Are you checking your device's specifications, software details, or something else? Let me know how I can assist!",
+      "timestamp": "23:38:56",
+      "is_welcome": false,
+      "datetime": "2025-11-07T23:38:56.488422"
+    },
+    {
+      "sender": "user",
+      "text": "System info",
+      "timestamp": "23:39:07",
+      "is_welcome": false,
+      "datetime": "2025-11-07T23:39:07.172001"
+    }
+  ]
+}
